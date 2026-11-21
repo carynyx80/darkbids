@@ -1,12 +1,14 @@
-import Link from "next/link";
 import { APP_NAME } from "@veil/core/config";
+import Link from "next/link";
 import "./styles.css";
 import { MainNav } from "./main-nav";
 import { Providers } from "./providers";
 
 export const metadata = {
 	title: APP_NAME,
-	description: "Confidential OTC negotiation on Solana",
+	description:
+		"Encrypted OTC offers and a private Solana vault for SOL and USDC.",
+	icons: { icon: "/icon.png", apple: "/brand/leveil-mark.png" },
 };
 export default function Layout({
 	children,
@@ -26,7 +28,10 @@ export default function Layout({
 				<Providers>
 					<main className="shell">{children}</main>
 					<footer className="shell">
-						<span>{APP_NAME}</span>
+						<Link href="/" className="brand">
+							<span className="brand-mark" aria-hidden="true" />
+							{APP_NAME}
+						</Link>
 						<nav aria-label="Resources">
 							<Link href="/status">Status</Link>
 							<Link href="/docs">Guide</Link>

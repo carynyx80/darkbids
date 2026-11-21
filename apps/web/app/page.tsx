@@ -4,48 +4,48 @@ export default function Home() {
 	return (
 		<>
 			<section className="hero" aria-labelledby="hero-title">
-				<div className="hero-art" aria-hidden="true">
-					<div className="hero-orbit" />
-					<div className="hero-orb" />
-				</div>
 				<div className="hero-content">
-					<p className="eyebrow">
-						<span className="dot" /> Solana devnet preview
-					</p>
+					<p className="eyebrow">Private OTC desk on Solana</p>
 					<h1 id="hero-title">
-						Private offers
+						Make the deal
 						<br />
-						<em>for OTC trades.</em>
+						<em>in private.</em>
 					</h1>
 					<p>
-						Browse Solana token listings and negotiate directly. Offer terms are
-						encrypted in your browser.
+						Find counterparties, negotiate through encrypted offers, and manage
+						SOL and USDC in your private vault.
 					</p>
 					<div className="actions">
 						<Link className="button primary" href="/otc">
-							Browse listings
+							Browse listings <span aria-hidden="true">↗</span>
 						</Link>
-						<Link className="button secondary" href="/app">
+						<Link className="button" href="/app">
 							Open vault
 						</Link>
 					</div>
 				</div>
+				<div className="hero-art" aria-hidden="true" />
 			</section>
-			<section className="home-details" aria-label="About this preview">
+			<section className="home-details" aria-label="Desk and vault">
 				<article>
-					<h2>Negotiate in private</h2>
+					<h2>OTC desk</h2>
 					<p>
-						Make an encrypted offer and accept terms directly with the other
-						party. Trade funding and settlement are unavailable in this preview.
+						Post listings, exchange encrypted offers, and accept terms directly
+						with your counterparty. On-chain trade settlement is pending.
 					</p>
+					<Link href="/otc/new">
+						Create a listing <span aria-hidden="true">↗</span>
+					</Link>
 				</article>
 				<article>
-					<h2>Know what’s public</h2>
+					<h2>Private vault</h2>
 					<p>
-						On-chain addresses and timing stay public. Public deposits and
-						withdrawals also reveal the asset and amount.
+						Deposit, send privately, and withdraw SOL or USDC on Solana mainnet.
+						Your wallet authorizes each transaction.
 					</p>
-					<Link href="/docs">Read the guide</Link>
+					<Link href="/docs">
+						See how privacy works <span aria-hidden="true">↗</span>
+					</Link>
 				</article>
 			</section>
 		</>
