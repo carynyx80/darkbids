@@ -137,7 +137,7 @@ test("only a canonical Rings transaction signed by the session fee payer can be 
 			method: "sendTransaction",
 			params: [
 				getBase64EncodedWireTransaction({ ...transaction, signatures }),
-				{ encoding: "base64" },
+				{ encoding: "base64", preflightCommitment: "confirmed" },
 			],
 		};
 	};

@@ -65,7 +65,13 @@ const tags = z.strictObject({
 	tags: z.array(address).min(1).max(64),
 	...controls,
 });
+const proofLeaves = z.strictObject({
+	treeAccount: z.literal("777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"),
+	leaves: z.array(address).min(1).max(64),
+});
 const indexerMethods = {
+	getMerkleProofs: proofLeaves,
+	getNonInclusionProofs: proofLeaves,
 	getEncryptedUtxosByTags: tags,
 	getShieldedTransactionsByTags: tags,
 	getShieldedTransactionsByNullifiers: z.strictObject({
@@ -104,7 +110,10 @@ export function readPrivacySubmission(value: unknown, wallet: string) {
 			method: z.literal("sendTransaction"),
 			params: z.tuple([
 				wireTransaction,
-				z.strictObject({ encoding: z.literal("base64") }),
+				z.strictObject({
+					encoding: z.literal("base64"),
+					preflightCommitment: commitment.optional(),
+				}),
 			]),
 		})
 		.parse(value);

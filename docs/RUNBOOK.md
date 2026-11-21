@@ -47,10 +47,10 @@ The [Vercel staging frontend](https://veil-devnet-carynyx1.vercel.app) requires 
 
 Hosted checks passed for frontend page delivery and the configured API bundle, Postgres connectivity, CORS preflight, wallet sign-in and replay rejection, live screening, encrypted listing and offer, acceptance, buyer-side decryption and the settlement guard. The disposable listing was canceled. Hosted vault transactions remain disabled and the deployment has no devnet Helius RPC configured.
 
-## Mainnet vault read-only mode
+## Mainnet SOL vault
 
 The wallet signs in through the existing desk API before reading its mainnet vault. The API relays scoped account and encrypted-indexer reads and supports unsigned SOL deposit simulation. The Helius credential stays in Railway and proof requests are outside the relay allowlist. The browser decrypts locally. The read and simulation routes reject submission. The OTC desk network and funding gates remain independent.
 
 To configure the relay, add a Privacy Rings-enabled mainnet key as the secret `HELIUS_MAINNET_API_KEY` in Railway and set `ENABLE_MAINNET_VAULT_READS=true`. Build the web app with `NEXT_PUBLIC_VAULT_NETWORK=mainnet` once the API health response shows `mainnetVaultReads: true`. Verify a signed-in wallet can sync before announcing availability. The checked-in settings keep mainnet access off by default.
 
-The separate signed-transaction route requires `ENABLE_MAINNET_VAULT_WRITES=true` on Railway. The frontend controls also require `NEXT_PUBLIC_ENABLE_MAINNET_VAULT_WRITES=true` at build time. Keep both switches off in production until a controlled mainnet deposit, private send, and withdrawal has completed and indexed successfully. The wallet must support Solana v1 transaction signing. The relay checks that the fee payer matches the authenticated wallet and verifies its signature. The browser reports success after Solana confirmation.
+The separate signed-transaction route requires `ENABLE_MAINNET_VAULT_WRITES=true` on Railway. The frontend controls also require `NEXT_PUBLIC_ENABLE_MAINNET_VAULT_WRITES=true` at build time. Both switches default to off for new environments. The production SOL vault was enabled after a controlled mainnet deposit and private send were confirmed and indexed, and the recipient withdrew to a public address. Live vault writes are limited to SOL. The wallet must support Solana v1 transaction signing. The relay checks that the fee payer matches the authenticated wallet and verifies its signature. The browser reports success after Solana confirmation.

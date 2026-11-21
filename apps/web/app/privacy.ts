@@ -277,6 +277,8 @@ export async function openPrivacy(seed: Uint8Array, token?: string) {
 			if (!depositsEnabled) throw new Error("Vault deposits are disabled");
 			walletSigner(provider, account);
 			const asset = mint ? address(mint) : SOL_MINT;
+			if (mainnetWrites && asset !== SOL_MINT)
+				throw new Error("The mainnet vault supports SOL only");
 			const decimals = (await fetchAssetMetadata(client, asset)).decimals;
 			const feePayer = address(account.address);
 			const tokenProgram =
@@ -309,6 +311,8 @@ export async function openPrivacy(seed: Uint8Array, token?: string) {
 					? ShieldedAddress.fromBytes(decode(destination))
 					: address(destination);
 			const asset = mint ? address(mint) : SOL_MINT;
+			if (mainnetWrites && asset !== SOL_MINT)
+				throw new Error("The mainnet vault supports SOL only");
 			const { decimals } = await fetchAssetMetadata(client, asset, context);
 			const amount = parseUnits(value, decimals);
 			await syncWallet({ client, wallet, keys }, context);

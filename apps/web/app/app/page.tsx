@@ -99,7 +99,7 @@ export default function Dashboard() {
 		event.preventDefault();
 		if (!client || !wallet || !account) return;
 		const data = new FormData(event.currentTarget);
-		const mint = String(data.get("mint")).trim();
+		const mint = String(data.get("mint") ?? "").trim();
 		const amount = String(data.get("amount"));
 		const destination = String(data.get("destination")).trim();
 		setSignature("");
@@ -150,7 +150,9 @@ export default function Dashboard() {
 				<p>
 					{network === "mainnet" && !depositsEnabled
 						? "View mainnet balances and history, and simulate a SOL deposit."
-						: "View private balances and history on this device."}
+						: network === "mainnet"
+							? "Deposit, send, and withdraw SOL on mainnet."
+							: "View private balances and history on this device."}
 				</p>
 			</div>
 			{!seed ? (
@@ -173,7 +175,7 @@ export default function Dashboard() {
 					<div className="grid two">
 						<article className="panel">
 							<h2>Balances</h2>
-							{client && network !== "mainnet" && (
+							{client && (network !== "mainnet" || spendingEnabled) && (
 								<details>
 									<summary>Shielded receiving address</summary>
 									<code>{client.shieldedAddress}</code>
@@ -228,10 +230,12 @@ export default function Dashboard() {
 								onSubmit={(event) => transact("deposit", event)}
 							>
 								<h2>Deposit</h2>
-								<label>
-									SPL mint (optional for SOL)
-									<input name="mint" placeholder="SOL" />
-								</label>
+								{network !== "mainnet" && (
+									<label>
+										SPL mint (optional for SOL)
+										<input name="mint" placeholder="SOL" />
+									</label>
+								)}
 								<label>
 									Amount
 									<input
@@ -287,10 +291,12 @@ export default function Dashboard() {
 								onSubmit={(event) => transact(kind, event)}
 							>
 								<h2>{kind === "send" ? "Send" : "Withdraw"}</h2>
-								<label>
-									SPL mint (optional for SOL)
-									<input name="mint" placeholder="SOL" />
-								</label>
+								{network !== "mainnet" && (
+									<label>
+										SPL mint (optional for SOL)
+										<input name="mint" placeholder="SOL" />
+									</label>
+								)}
 								<label>
 									Amount
 									<input name="amount" inputMode="decimal" required />
