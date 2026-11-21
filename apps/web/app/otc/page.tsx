@@ -1,10 +1,10 @@
 "use client";
-import { useState } from "react";
-import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { categories, quotes } from "@veil/core/config";
+import Link from "next/link";
+import { useState } from "react";
 import { api } from "../providers";
-import { type Listing, expiry, short } from "./types";
+import { expiry, type Listing, short } from "./types";
 
 export default function Board() {
 	const [category, setCategory] = useState("");
@@ -89,7 +89,7 @@ export default function Board() {
 					</button>
 				</div>
 			) : query.data.items.length ? (
-				<div className="grid two">
+				<div className="listing-grid">
 					{query.data.items.map((item) => (
 						<article className="panel stack listing-card" key={item.id}>
 							<div className="split">

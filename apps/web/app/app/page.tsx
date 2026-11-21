@@ -166,7 +166,7 @@ export default function Dashboard() {
 	}
 
 	return (
-		<section className="stack">
+		<section className="stack vault-workspace">
 			<div className="section-head">
 				<div className="eyebrow">{network.toUpperCase()} / DEFAULT RING</div>
 				<h1>Private vault</h1>
@@ -181,7 +181,7 @@ export default function Dashboard() {
 				</p>
 			</div>
 			{!seed ? (
-				<div className="panel board-state">
+				<div className="panel board-state vault-locked">
 					<h2>Your vault is locked</h2>
 					<p>
 						Connect and unlock your wallet to view private balances and history.
@@ -189,7 +189,7 @@ export default function Dashboard() {
 				</div>
 			) : (
 				<>
-					<div className="actions">
+					<div className="actions vault-tools">
 						<button type="button" disabled={!client || busy} onClick={refresh}>
 							Refresh
 						</button>
@@ -198,7 +198,7 @@ export default function Dashboard() {
 						</button>
 					</div>
 					<div className="grid two">
-						<article className="panel">
+						<article className="panel balance-panel">
 							<h2>Balances</h2>
 							{client && (network !== "mainnet" || spendingEnabled) && (
 								<details>

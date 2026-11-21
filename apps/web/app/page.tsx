@@ -4,47 +4,47 @@ export default function Home() {
 	return (
 		<>
 			<section className="hero" aria-labelledby="hero-title">
+				<div className="hero-art" aria-hidden="true" />
 				<div className="hero-content">
-					<p className="eyebrow">Private OTC desk on Solana</p>
+					<p className="eyebrow">Private finance on Solana</p>
 					<h1 id="hero-title">
-						Private offers.
+						Trade talks.
 						<br />
-						<em>Direct deals.</em>
+						<em>Kept private.</em>
 					</h1>
 					<p>
-						Find counterparties, negotiate through encrypted offers, and manage
-						SOL and USDC in a vault powered by Helius Privacy Rings.
+						Negotiate with encrypted OTC offers and move SOL and USDC through a
+						vault powered by Helius Privacy Rings.
 					</p>
 					<div className="actions">
-						<Link className="button primary" href="/otc">
-							Browse listings <span aria-hidden="true">↗</span>
+						<Link className="button primary" href="/app">
+							Open vault <span aria-hidden="true">↗</span>
 						</Link>
-						<Link className="button" href="/app">
-							Open vault
+						<Link className="button hero-secondary" href="/otc">
+							Browse OTC board
 						</Link>
 					</div>
 				</div>
-				<div className="hero-art" aria-hidden="true" />
 			</section>
-			<section className="home-details" aria-label="Desk and vault">
+			<section className="home-details" aria-label="Explore useparlo">
 				<article>
-					<h2>OTC desk</h2>
+					<h2>OTC board</h2>
 					<p>
-						Post listings, exchange encrypted offers, and accept terms directly
-						with your counterparty. On-chain trade settlement is pending.
+						Post listings, exchange encrypted offers, and agree on terms.
+						On-chain settlement is pending.
 					</p>
-					<Link href="/otc/new">
-						Create a listing <span aria-hidden="true">↗</span>
+					<Link href="/otc">
+						Explore listings <span aria-hidden="true">↗</span>
 					</Link>
 				</article>
 				<article>
 					<h2>Private vault</h2>
 					<p>
-						Deposit, send privately, and withdraw SOL or USDC on Solana mainnet.
-						Your wallet authorizes each transaction.
+						Deposit, send privately, and withdraw SOL or USDC on mainnet. Your
+						wallet authorizes every transaction.
 					</p>
-					<Link href="/docs">
-						See how privacy works <span aria-hidden="true">↗</span>
+					<Link href="/app">
+						Go to vault <span aria-hidden="true">↗</span>
 					</Link>
 				</article>
 			</section>
