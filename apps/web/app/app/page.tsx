@@ -106,7 +106,11 @@ export default function Dashboard() {
 		setNotice("Preparing transaction");
 		setBusy(true);
 		try {
-			if (network === "devnet") {
+			if (network === "mainnet") {
+				const health = await api<{ mainnetVaultWrites: boolean }>("/health");
+				if (!health.mainnetVaultWrites)
+					throw new Error("Mainnet vault transactions are unavailable");
+			} else if (network === "devnet") {
 				const health = await api<{ network: string }>("/health");
 				if (health.network !== network)
 					throw new Error("Web and API networks differ");
@@ -144,7 +148,7 @@ export default function Dashboard() {
 				<div className="eyebrow">{network.toUpperCase()} / DEFAULT RING</div>
 				<h1>Private vault</h1>
 				<p>
-					{network === "mainnet"
+					{network === "mainnet" && !depositsEnabled
 						? "View mainnet balances and history, and simulate a SOL deposit."
 						: "View private balances and history on this device."}
 				</p>
@@ -194,7 +198,7 @@ export default function Dashboard() {
 								<p>{busy ? "Syncing…" : "Balances unavailable."}</p>
 							)}
 						</article>
-						{network === "mainnet" ? (
+						{network === "mainnet" && !depositsEnabled ? (
 							<form className="panel stack" onSubmit={simulateDeposit}>
 								<h2>Simulate a SOL deposit</h2>
 								<p>
@@ -244,10 +248,12 @@ export default function Dashboard() {
 										are public.
 									</p>
 								</div>
-								<label className="check">
-									<input type="checkbox" required /> I am using disposable test
-									assets.
-								</label>
+								{network !== "mainnet" && (
+									<label className="check">
+										<input type="checkbox" required /> I am using disposable
+										test assets.
+									</label>
+								)}
 								{depositsEnabled ? (
 									<button
 										className="primary"

@@ -1,7 +1,22 @@
+import {
+	type Address,
+	address,
+	appendTransactionMessageInstruction,
+	blockhash,
+	compileTransaction,
+	createTransactionMessage,
+	getBase64EncodedWireTransaction,
+	setTransactionMessageFeePayer,
+	setTransactionMessageLifetimeUsingBlockhash,
+	signatureBytes,
+} from "@solana/kit";
+import bs58 from "bs58";
+import nacl from "tweetnacl";
 import { expect, test, vi } from "vitest";
 import {
 	readBoundedPrivacyResponse,
 	readPrivacyRequest,
+	readPrivacySubmission,
 	relayPrivacyRead,
 } from "./privacy-rpc";
 
@@ -87,4 +102,53 @@ test("the RPC relay allows simulation only with signature verification disabled"
 			}),
 		).toThrow();
 	}
+});
+
+test("only a canonical Rings transaction signed by the session fee payer can be submitted", () => {
+	const signer = nacl.sign.keyPair();
+	const payer = address(bs58.encode(signer.publicKey));
+	const rings = address("ring1GaLCuJnkUMVkX2JeZLTTX17wKsV4fZmPVzXANW");
+	const message = setTransactionMessageLifetimeUsingBlockhash(
+		{ blockhash: blockhash(tag), lastValidBlockHeight: 50n },
+		setTransactionMessageFeePayer(
+			payer,
+			createTransactionMessage({ version: 1 }),
+		),
+	);
+	const requestFor = (programAddress: Address, signed: boolean) => {
+		const transaction = compileTransaction(
+			appendTransactionMessageInstruction(
+				{ programAddress, data: new Uint8Array(1400) },
+				message,
+			),
+		);
+		const signatures = signed
+			? {
+					[payer]: signatureBytes(
+						nacl.sign.detached(
+							new Uint8Array(transaction.messageBytes),
+							signer.secretKey,
+						),
+					),
+				}
+			: transaction.signatures;
+		return {
+			...query,
+			method: "sendTransaction",
+			params: [
+				getBase64EncodedWireTransaction({ ...transaction, signatures }),
+				{ encoding: "base64" },
+			],
+		};
+	};
+	const valid = requestFor(rings, true);
+	expect(readPrivacySubmission(valid, payer)).toEqual(valid);
+	expect(readPrivacySubmission(valid, tag)).toBeUndefined();
+	expect(
+		readPrivacySubmission(requestFor(rings, false), payer),
+	).toBeUndefined();
+	expect(
+		readPrivacySubmission(requestFor(address(tag), true), payer),
+	).toBeUndefined();
+	expect(readPrivacyRequest("rpc", valid)).toBeUndefined();
 });

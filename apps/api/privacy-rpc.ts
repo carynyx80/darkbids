@@ -1,3 +1,10 @@
+import {
+	getCompiledTransactionMessageDecoder,
+	getTransactionDecoder,
+	getTransactionEncoder,
+} from "@solana/kit";
+import bs58 from "bs58";
+import nacl from "tweetnacl";
 import { z } from "zod";
 
 const address = z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
@@ -14,14 +21,20 @@ const accountOptions = z.strictObject({
 	encoding: z.literal("base64"),
 });
 const pool = "ring1GaLCuJnkUMVkX2JeZLTTX17wKsV4fZmPVzXANW";
+// Solana v1 transactions can carry up to 4 KiB, including their signatures.
+const maxWireBytes = 4096;
+const wireTransaction = z
+	.string()
+	.min(4)
+	.max(4 * Math.ceil(maxWireBytes / 3))
+	.regex(/^[A-Za-z0-9+/]+={0,2}$/);
 const rpcMethods = {
+	getSignatureStatuses: z.tuple([
+		z.tuple([z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{64,88}$/)]),
+	]),
 	getLatestBlockhash: z.tuple([z.strictObject({ commitment })]),
 	simulateTransaction: z.tuple([
-		z
-			.string()
-			.min(4)
-			.max(1644)
-			.regex(/^[A-Za-z0-9+/]+={0,2}$/),
+		wireTransaction,
 		z.strictObject({
 			encoding: z.literal("base64"),
 			sigVerify: z.literal(false),
@@ -83,6 +96,57 @@ export function readPrivacyRequest(
 	}
 	methods[request.method].parse(request.params);
 	return request;
+}
+
+export function readPrivacySubmission(value: unknown, wallet: string) {
+	const request = envelope
+		.extend({
+			method: z.literal("sendTransaction"),
+			params: z.tuple([
+				wireTransaction,
+				z.strictObject({ encoding: z.literal("base64") }),
+			]),
+		})
+		.parse(value);
+	try {
+		const wire = Buffer.from(request.params[0], "base64");
+		if (
+			wire.length > maxWireBytes ||
+			wire.toString("base64") !== request.params[0]
+		)
+			return undefined;
+		const transaction = getTransactionDecoder().decode(wire);
+		if (
+			!wire.equals(Uint8Array.from(getTransactionEncoder().encode(transaction)))
+		)
+			return undefined;
+		const message = getCompiledTransactionMessageDecoder().decode(
+			transaction.messageBytes,
+		);
+		const feePayer = message.staticAccounts[0];
+		if (
+			message.version !== 1 ||
+			feePayer !== wallet ||
+			!message.instructionHeaders.some(
+				(instruction) =>
+					message.staticAccounts[instruction.programAccountIndex] === pool,
+			)
+		)
+			return undefined;
+		const signature = transaction.signatures[feePayer];
+		if (
+			!signature ||
+			!nacl.sign.detached.verify(
+				new Uint8Array(transaction.messageBytes),
+				new Uint8Array(signature),
+				bs58.decode(feePayer),
+			)
+		)
+			return undefined;
+		return request;
+	} catch {
+		return undefined;
+	}
 }
 
 export function relayPrivacyRead(

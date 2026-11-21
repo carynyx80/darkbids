@@ -17,6 +17,7 @@ import {
 import {
 	address,
 	getBase64EncodedWireTransaction,
+	getSignatureFromTransaction,
 	getTransactionDecoder,
 	getTransactionEncoder,
 	signatureBytes,
@@ -30,14 +31,19 @@ export const network =
 	process.env.NEXT_PUBLIC_VAULT_NETWORK ??
 	process.env.NEXT_PUBLIC_NETWORK ??
 	"devnet";
+const mainnetWrites =
+	network === "mainnet" &&
+	process.env.NEXT_PUBLIC_ENABLE_MAINNET_VAULT_WRITES === "true";
 export const depositsEnabled =
-	network !== "mainnet" &&
-	process.env.NEXT_PUBLIC_ENABLE_TEST_DEPOSITS === "true";
+	mainnetWrites ||
+	(network !== "mainnet" &&
+		process.env.NEXT_PUBLIC_ENABLE_TEST_DEPOSITS === "true");
 
 const LOCAL_PROVER = "http://127.0.0.1:3001";
 export const spendingEnabled =
-	network !== "mainnet" &&
-	process.env.NEXT_PUBLIC_ENABLE_TEST_SPENDS === "true";
+	mainnetWrites ||
+	(network !== "mainnet" &&
+		process.env.NEXT_PUBLIC_ENABLE_TEST_SPENDS === "true");
 
 const proofDisabled = async (): Promise<never> => {
 	throw new Error("This client is read-only");
@@ -45,14 +51,24 @@ const proofDisabled = async (): Promise<never> => {
 
 const readWithBackoff: typeof fetch = async (input, init) => {
 	for (let attempt = 0; ; attempt += 1) {
-		const response = await fetch(input, init);
+		const response = await fetch(
+			input instanceof Request ? input.clone() : input,
+			init,
+		);
 		if (response.status !== 429 || attempt === 2) return response;
 		await response.body?.cancel();
 		await new Promise((resolve) => setTimeout(resolve, 700 * 2 ** attempt));
 	}
 };
 
-export const proofNetworkFetch: typeof fetch = async (input, init) => {
+export const proofNetworkFetch: typeof fetch = (input, init) =>
+	fetchProofDependency(input, init, readWithBackoff);
+
+async function fetchProofDependency(
+	input: Parameters<typeof fetch>[0],
+	init: RequestInit | undefined,
+	transport: typeof fetch,
+) {
 	const url = new URL(input instanceof Request ? input.url : String(input));
 	if (url.origin === LOCAL_PROVER)
 		throw new Error("Proof requests must be handled inside the browser");
@@ -63,12 +79,13 @@ export const proofNetworkFetch: typeof fetch = async (input, init) => {
 			throw new Error("Key material cannot be sent to the network");
 		}
 	}
-	return readWithBackoff(input, init);
-};
+	return transport(request);
+}
 
 export async function openPrivacy(seed: Uint8Array, token?: string) {
 	let solanaRpcUrl = process.env.NEXT_PUBLIC_HELIUS_RPC_URL || undefined;
 	let indexerUrl: string | undefined;
+	let submitUrl: string | undefined;
 	let transport = readWithBackoff;
 	if (network === "mainnet") {
 		if (!token) throw new Error("Sign in to read your mainnet vault");
@@ -77,6 +94,7 @@ export async function openPrivacy(seed: Uint8Array, token?: string) {
 		const base = new URL("/vault/mainnet/", apiOrigin);
 		solanaRpcUrl = new URL("rpc", base).href;
 		indexerUrl = new URL("indexer", base).href;
+		if (mainnetWrites) submitUrl = new URL("submit", base).href;
 		transport = (input, init) => {
 			const request = new Request(input, init);
 			const url = new URL(request.url);
@@ -100,6 +118,16 @@ export async function openPrivacy(seed: Uint8Array, token?: string) {
 		proverUrl: LOCAL_PROVER,
 		fetch: transport,
 	});
+	const submissionRpc = submitUrl
+		? (
+				await createSprClient({
+					solanaRpcUrl: submitUrl,
+					indexerUrl,
+					proverUrl: LOCAL_PROVER,
+					fetch: transport,
+				})
+			).solanaRpc
+		: client.solanaRpc;
 	const seedCopy = new Uint8Array(seed);
 	const key = ShieldedKeypair.fromKeypair(
 		SigningKey.fromEd25519Bytes(
@@ -161,26 +189,34 @@ export async function openPrivacy(seed: Uint8Array, token?: string) {
 			throw new Error("Wallet modified the transaction");
 		if (!decoded.signatures[address(account.address)])
 			throw new Error("Wallet did not return its signature");
+		const signedTransaction = {
+			...decoded,
+			signatures: {
+				...transaction.signatures,
+				[address(account.address)]:
+					decoded.signatures[address(account.address)],
+			},
+		};
+		const expectedSignature = getSignatureFromTransaction(signedTransaction);
 		progress("Submitting to Solana");
-		const signature = await client.solanaRpc
-			.sendTransaction(
-				getBase64EncodedWireTransaction({
-					...decoded,
-					signatures: {
-						...transaction.signatures,
-						...Object.fromEntries(
-							Object.entries(decoded.signatures).filter(
-								([, signature]) => signature !== null,
-							),
-						),
-					},
-				}),
-				{ encoding: "base64" },
-			)
-			.send();
-		progress("Waiting for confirmation");
-		await client.confirmTransaction(signature, undefined, context);
-		return signature;
+		try {
+			const signature = await submissionRpc
+				.sendTransaction(getBase64EncodedWireTransaction(signedTransaction), {
+					encoding: "base64",
+				})
+				.send({ abortSignal: lifetime.signal });
+			if (signature !== expectedSignature)
+				throw new Error("The RPC returned an unexpected transaction signature");
+			progress("Waiting for confirmation");
+			await client.confirmTransaction(signature, undefined, context);
+			return signature;
+		} catch (error) {
+			if (network !== "mainnet") throw error;
+			throw new Error(
+				`Transaction could not be confirmed. Check ${expectedSignature} on Solscan before retrying.`,
+				{ cause: error },
+			);
+		}
 	}
 
 	return {
@@ -238,7 +274,7 @@ export async function openPrivacy(seed: Uint8Array, token?: string) {
 			value: string,
 			progress: (label: string) => void,
 		) {
-			if (!depositsEnabled) throw new Error("Test deposits are disabled");
+			if (!depositsEnabled) throw new Error("Vault deposits are disabled");
 			walletSigner(provider, account);
 			const asset = mint ? address(mint) : SOL_MINT;
 			const decimals = (await fetchAssetMetadata(client, asset)).decimals;
@@ -266,7 +302,7 @@ export async function openPrivacy(seed: Uint8Array, token?: string) {
 			destination: string,
 			progress: (label: string) => void,
 		) {
-			if (!spendingEnabled) throw new Error("Test spending is disabled");
+			if (!spendingEnabled) throw new Error("Vault spending is disabled");
 			walletSigner(provider, account);
 			const recipient =
 				kind === "send"
@@ -287,11 +323,17 @@ export async function openPrivacy(seed: Uint8Array, token?: string) {
 				threads: 0,
 				fetch: proofNetworkFetch,
 			});
+			const localProofFetch = prover.createFetch();
 			const localClient = await createSprClient({
 				solanaRpcUrl,
 				proverUrl: LOCAL_PROVER,
+				indexerUrl,
 				proofDataSource: "client",
-				fetch: prover.createFetch(),
+				fetch: (input, init) =>
+					new URL(input instanceof Request ? input.url : String(input))
+						.origin === LOCAL_PROVER
+						? localProofFetch(input, init)
+						: fetchProofDependency(input, init, transport),
 			});
 			const spendKeys = LocalKeys.fromKeypair(key, localClient.proofService);
 			try {

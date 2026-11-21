@@ -35,6 +35,9 @@ importers:
       '@fastify/swagger-ui':
         specifier: ^5.0.0
         version: 5.2.6
+      '@solana/kit':
+        specifier: 8.6.0
+        version: 8.6.0(typescript@5.9.3)
       '@veil/core':
         specifier: workspace:*
         version: link:../../packages/core
