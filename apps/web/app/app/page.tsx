@@ -124,7 +124,11 @@ export default function Dashboard() {
 			<div className="section-head">
 				<div className="eyebrow">{network.toUpperCase()} / DEFAULT RING</div>
 				<h1>Private vault</h1>
-				<p>View private balances and history on this device.</p>
+				<p>
+					{network === "mainnet"
+						? "View mainnet balances and history. Deposits, sends and withdrawals are unavailable."
+						: "View private balances and history on this device."}
+				</p>
 			</div>
 			{!seed ? (
 				<div className="panel board-state">
@@ -146,7 +150,7 @@ export default function Dashboard() {
 					<div className="grid two">
 						<article className="panel">
 							<h2>Balances</h2>
-							{client && (
+							{client && network !== "mainnet" && (
 								<details>
 									<summary>Shielded receiving address</summary>
 									<code>{client.shieldedAddress}</code>
