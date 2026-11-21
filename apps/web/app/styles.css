@@ -13,7 +13,6 @@ nav a:hover{color:var(--mint)}
 .brand i{width:16px;height:16px;border:2px solid var(--mint);transform:rotate(45deg);box-shadow:inset 0 0 0 3px var(--base),inset 0 0 0 10px var(--mint)}
 .wallet-strip{background:#101517;border-bottom:1px solid var(--line);color:var(--muted);font-size:.9rem}
 .wallet-inner{justify-content:flex-end;min-height:56px;padding-block:8px}
-.wallet-inner button{min-height:36px;padding:3px 12px}
 main{min-height:64vh;padding-block:34px 64px}
 footer{border-top:1px solid var(--line);padding-block:24px;color:var(--muted);font-size:.9rem}
 h1,h2,p,dl{margin:0}
@@ -37,6 +36,7 @@ p{color:var(--muted);max-width:65ch}
 .actions{justify-content:flex-start}
 button,.button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 16px;color:var(--text);background:#192125;border:1px solid #39484a;border-radius:8px;font:inherit;font-weight:650;text-decoration:none;cursor:pointer;width:fit-content}
 button:hover,.button:hover{border-color:var(--mint)}.primary{color:#0c2017;background:var(--mint);border-color:var(--mint)}
+.wallet-inner button{min-height:36px;padding:3px 12px}
 button:disabled{opacity:.45;cursor:default}
 :focus-visible{outline:2px solid var(--mint);outline-offset:3px}
 label{display:grid;gap:6px;font-size:.91rem;color:var(--muted)}

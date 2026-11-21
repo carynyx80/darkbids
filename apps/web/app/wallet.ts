@@ -39,7 +39,7 @@ export function clearSeed() {
 export async function signMessage(wallet: StandardWallet, account: Account, message: Uint8Array) {
   const [output] = await wallet.features['solana:signMessage']?.signMessage({ account, message }) ?? [];
   const publicKey = bs58.decode(account.address);
-  if (!output || output.signature.length !== 64 ||
+  if (output?.signature.length !== 64 ||
       !nacl.sign.detached.verify(message, output.signature, publicKey)) {
     throw new Error('Wallet returned a signature for a different request');
   }

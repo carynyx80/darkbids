@@ -23,7 +23,7 @@ const readWithBackoff: typeof fetch = async (input, init) => {
 
 export async function openPrivacy(seed: Uint8Array) {
   if (network !== 'devnet' && network !== 'localnet') throw new Error('Production vault disabled');
-  const solanaRpcUrl = process.env.NEXT_PUBLIC_HELIUS_RPC_URL;
+  const solanaRpcUrl = process.env.NEXT_PUBLIC_HELIUS_RPC_URL || undefined;
   if (network === 'devnet' && !solanaRpcUrl) throw new Error('Devnet RPC is not configured');
   if (network === 'localnet' && solanaRpcUrl) throw new Error('Localnet uses the default loopback ports');
   const client = await createSprClient({
@@ -47,6 +47,7 @@ export async function openPrivacy(seed: Uint8Array) {
       return { balances, history: getPrivateTransactions(wallet) };
     },
     async deposit(provider: StandardWallet, account: Account, mint: string, value: string, progress: (label: string) => void) {
+      if (process.env.NEXT_PUBLIC_ENABLE_TEST_DEPOSITS !== 'true') throw new Error('Test deposits are disabled');
       const signer = provider.features['solana:signTransaction'];
       const chain = `solana:${network}`;
       if (!signer?.supportedTransactionVersions.includes(1) || !account.chains.includes(chain)) {

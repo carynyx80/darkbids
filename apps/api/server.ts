@@ -4,7 +4,7 @@ import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
-import { authMessage, listingInput, offerInput, walletAddress } from '@veil/core/contracts';
+import { authMessage, envelope, listingInput, offerInput, walletAddress } from '@veil/core/contracts';
 import bs58 from 'bs58';
 import Fastify, { type FastifyRequest } from 'fastify';
 import { SignJWT, jwtVerify } from 'jose';
@@ -29,7 +29,9 @@ if (config.NEXT_PUBLIC_NETWORK === 'mainnet') {
 const origin = new URL(config.WEB_ORIGIN).origin;
 const secret = new TextEncoder().encode(config.JWT_SECRET);
 const pool = new pg.Pool({ connectionString: config.DATABASE_URL, connectionTimeoutMillis: 3000 });
-await pool.query(await readFile(new URL('./migrations/001.sql', import.meta.url), 'utf8'));
+for (const migration of ['001.sql', '002.sql']) {
+  await pool.query(await readFile(new URL(`./migrations/${migration}`, import.meta.url), 'utf8'));
+}
 const screening = new OfacProvider();
 const api = Fastify({ logger: false, bodyLimit: 20_000 });
 await api.register(rateLimit, { max: 80, timeWindow: '1 minute' });
@@ -71,8 +73,8 @@ async function screen(wallet: string) {
 api.setErrorHandler((error, _request, reply) => {
   if (error instanceof Rejection) return reply.code(error.status).send({ message: error.message });
   if (error instanceof z.ZodError) return reply.code(400).send({ message: 'Invalid request' });
-  const status = error.statusCode;
-  if (status && status >= 400 && status < 500) return reply.code(status).send({ message: 'Request rejected' });
+  const status = typeof error === 'object' && error !== null && 'statusCode' in error ? error.statusCode : undefined;
+  if (typeof status === 'number' && status >= 400 && status < 500) return reply.code(status).send({ message: 'Request rejected' });
   return reply.code(503).send({ message: 'Service temporarily unavailable' });
 });
 
@@ -88,12 +90,12 @@ api.post('/auth/nonce', async request => {
   const expiresAt = new Date(Date.now() + 5 * 60_000).toISOString();
   await pool.query('DELETE FROM auth_nonce WHERE expires_at <= now()');
   await pool.query('INSERT INTO auth_nonce VALUES ($1,$2,$3)', [nonce, wallet, expiresAt]);
-  return { nonce, message: authMessage(origin, wallet, nonce, expiresAt) };
+  return { nonce, expiresAt };
 });
 
 api.post('/auth/verify', async request => {
   const { wallet, nonce, signature } = z.strictObject({
-    wallet: walletAddress, nonce: z.uuid(), signature: z.base64().length(88),
+    wallet: walletAddress, nonce: z.uuid(), signature: z.base64().length(88).refine(value => Buffer.from(value, 'base64').length === 64),
   }).parse(request.body);
   limitWallet(wallet);
   const challenge = await pool.query<{ expires_at: Date }>(
@@ -196,7 +198,9 @@ api.get('/deals/:id', async request => {
     `SELECT o.id, o.listing_id, o.buyer, l.seller, l.expires_at,
      CASE WHEN l.cancelled THEN 'CANCELLED' WHEN l.expires_at <= now() THEN 'EXPIRED'
      WHEN o.accepted_at IS NOT NULL THEN 'ACCEPTED' ELSE 'OFFERED' END AS state,
-     CASE WHEN l.seller=$2 THEN o.ciphertext END AS ciphertext
+     CASE WHEN l.seller=$2 THEN o.ciphertext END AS ciphertext,
+     CASE WHEN l.seller=$2 THEN o.seller_terms ELSE o.buyer_terms END AS terms,
+     CASE WHEN l.seller=$2 THEN o.encryption_key END AS buyer_encryption_key
      FROM offer o JOIN listing l ON l.id=o.listing_id WHERE o.id=$1 AND ($2=l.seller OR $2=o.buyer)`,
     [idOf(request), wallet],
   );
@@ -206,6 +210,7 @@ api.get('/deals/:id', async request => {
 
 api.post('/deals/:id/accept', async request => {
   const wallet = await walletOf(request);
+  const terms = z.strictObject({ sellerTerms: envelope, buyerTerms: envelope }).parse(request.body);
   const selection = await pool.query<{ listing_id: string; buyer: string }>(
     'SELECT o.listing_id,o.buyer FROM offer o JOIN listing l ON l.id=o.listing_id WHERE o.id=$1 AND l.seller=$2',
     [idOf(request), wallet],
@@ -222,7 +227,10 @@ api.post('/deals/:id/accept', async request => {
     if (!active.rowCount) throw new Rejection(409, 'Listing unavailable');
     const existing = await client.query('SELECT id FROM offer WHERE listing_id=$1 AND accepted_at IS NOT NULL', [offer.listing_id]);
     if (existing.rows[0]?.id && existing.rows[0].id !== idOf(request)) throw new Rejection(409, 'A deal is already accepted');
-    await client.query('UPDATE offer SET accepted_at=COALESCE(accepted_at,now()) WHERE id=$1', [idOf(request)]);
+    await client.query(
+      'UPDATE offer SET accepted_at=now(), seller_terms=$2, buyer_terms=$3 WHERE id=$1 AND accepted_at IS NULL',
+      [idOf(request), terms.sellerTerms, terms.buyerTerms],
+    );
     await client.query('COMMIT');
   } catch (error) {
     await client.query('ROLLBACK');

@@ -83,7 +83,10 @@ export default function Dashboard() {
           <label>SPL mint (optional for SOL)<input name="mint" placeholder="SOL" /></label>
           <label>Amount<input name="amount" inputMode="decimal" required placeholder="0.00" /></label>
           <div className="inline-note"><strong>What the chain sees</strong><p>Sender, receiving address, timing, mint and deposited amount are public.</p></div>
-          <button className="primary" type="submit" disabled={!client || busy}>Review deposit</button>
+          <label className="check"><input type="checkbox" required /> I am using test assets and understand withdrawal is unavailable in this build.</label>
+          {process.env.NEXT_PUBLIC_ENABLE_TEST_DEPOSITS === 'true' ?
+            <button className="primary" type="submit" disabled={!client || busy}>Review deposit</button> :
+            <p>Test deposits are disabled in this environment.</p>}
         </form>
       </div>
       {notice && <div className="inline-note" role="status">{notice} {signature && (network === 'localnet' ? <code>{signature}</code> : <a href={explorer(signature)}>View on Solscan</a>)}</div>}
