@@ -46,3 +46,9 @@ The Playwright test passed on localnet with two disposable Wallet Standard fixtu
 The [Vercel staging frontend](https://veil-devnet-carynyx1.vercel.app) requires Vercel access. Its configured API is the [Railway devnet service](https://veil-api-devnet.up.railway.app/health). The Railway API uses private Postgres networking, with an exact CORS origin matching the Vercel alias. Keep the alias stable because the vault is derived from the browser origin.
 
 Hosted checks passed for frontend page delivery and the configured API bundle, Postgres connectivity, CORS preflight, wallet sign-in and replay rejection, live screening, encrypted listing and offer, acceptance, buyer-side decryption and the settlement guard. The disposable listing was canceled. Hosted vault transactions remain disabled and the deployment has no devnet Helius RPC configured.
+
+## Mainnet vault read-only mode
+
+The wallet signs in through the existing desk API before reading its mainnet vault. The API relays only the account and encrypted-indexer reads needed by the SDK. The Helius credential stays in Railway and proof requests are outside the relay allowlist. The browser decrypts locally. The relay rejects transaction submission and leaves the OTC desk network and funding gates independent.
+
+To configure the relay, add a Privacy Rings-enabled mainnet key as the secret `HELIUS_MAINNET_API_KEY` in Railway and set `ENABLE_MAINNET_VAULT_READS=true`. Build the web app with `NEXT_PUBLIC_VAULT_NETWORK=mainnet` once the API health response shows `mainnetVaultReads: true`. Verify a signed-in wallet can sync before announcing availability. The checked-in settings keep the feature off, and mainnet transaction controls remain disabled.

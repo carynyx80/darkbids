@@ -2,7 +2,12 @@
 import { useEffect, useState } from "react";
 import { formatAmount } from "@heliuslabs/spr";
 import { api, useSession } from "../providers";
-import { network, openPrivacy, spendingEnabled } from "../privacy";
+import {
+	depositsEnabled,
+	network,
+	openPrivacy,
+	spendingEnabled,
+} from "../privacy";
 
 type Privacy = Awaited<ReturnType<typeof openPrivacy>>;
 type Snapshot = Awaited<ReturnType<Privacy["read"]>>;
@@ -12,7 +17,8 @@ const explorer = (signature: string) =>
 	`https://solscan.io/tx/${signature}${network === "devnet" ? "?cluster=devnet" : ""}`;
 
 export default function Dashboard() {
-	const { seed, account, wallet, lock } = useSession();
+	const { seed, account, wallet, lock, token } = useSession();
+	const vaultToken = network === "mainnet" ? token : undefined;
 	const [client, setClient] = useState<Privacy>();
 	const [snapshot, setSnapshot] = useState<Snapshot>();
 	const [notice, setNotice] = useState("");
@@ -28,7 +34,7 @@ export default function Dashboard() {
 		setBusy(false);
 		if (seed) {
 			setBusy(true);
-			void openPrivacy(seed)
+			void openPrivacy(seed, vaultToken)
 				.then((next) => {
 					if (!active) {
 						next.destroy();
@@ -51,7 +57,7 @@ export default function Dashboard() {
 			active = false;
 			loaded?.destroy();
 		};
-	}, [seed]);
+	}, [seed, vaultToken]);
 
 	async function refresh() {
 		if (!client) return;
@@ -194,7 +200,7 @@ export default function Dashboard() {
 								<input type="checkbox" required /> I am using disposable test
 								assets.
 							</label>
-							{process.env.NEXT_PUBLIC_ENABLE_TEST_DEPOSITS === "true" ? (
+							{depositsEnabled ? (
 								<button
 									className="primary"
 									type="submit"
@@ -203,7 +209,11 @@ export default function Dashboard() {
 									Review deposit
 								</button>
 							) : (
-								<p>Test deposits are disabled in this environment.</p>
+								<p>
+									{network === "mainnet"
+										? "Mainnet deposits are unavailable."
+										: "Test deposits are disabled in this environment."}
+								</p>
 							)}
 						</form>
 					</div>
@@ -253,7 +263,11 @@ export default function Dashboard() {
 										Review transaction
 									</button>
 								) : (
-									<p>Test spending is disabled in this environment.</p>
+									<p>
+										{network === "mainnet"
+											? "Mainnet spending is unavailable."
+											: "Test spending is disabled in this environment."}
+									</p>
 								)}
 							</form>
 						))}

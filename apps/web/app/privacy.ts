@@ -26,10 +26,17 @@ import { parseUnits } from "@veil/core/fees";
 import { decode, encode } from "@veil/core/vault";
 import type { Account, StandardWallet } from "./wallet";
 
-export const network = process.env.NEXT_PUBLIC_NETWORK ?? "devnet";
+export const network =
+	process.env.NEXT_PUBLIC_VAULT_NETWORK ??
+	process.env.NEXT_PUBLIC_NETWORK ??
+	"devnet";
+export const depositsEnabled =
+	network !== "mainnet" &&
+	process.env.NEXT_PUBLIC_ENABLE_TEST_DEPOSITS === "true";
 
 const LOCAL_PROVER = "http://127.0.0.1:3001";
 export const spendingEnabled =
+	network !== "mainnet" &&
 	process.env.NEXT_PUBLIC_ENABLE_TEST_SPENDS === "true";
 
 const proofDisabled = async (): Promise<never> => {
@@ -59,18 +66,39 @@ export const proofNetworkFetch: typeof fetch = async (input, init) => {
 	return readWithBackoff(input, init);
 };
 
-export async function openPrivacy(seed: Uint8Array) {
-	if (network !== "devnet" && network !== "localnet")
-		throw new Error("Production vault disabled");
-	const solanaRpcUrl = process.env.NEXT_PUBLIC_HELIUS_RPC_URL || undefined;
-	if (network === "devnet" && !solanaRpcUrl)
+export async function openPrivacy(seed: Uint8Array, token?: string) {
+	let solanaRpcUrl = process.env.NEXT_PUBLIC_HELIUS_RPC_URL || undefined;
+	let indexerUrl: string | undefined;
+	let transport = readWithBackoff;
+	if (network === "mainnet") {
+		if (!token) throw new Error("Sign in to read your mainnet vault");
+		const apiOrigin = process.env.NEXT_PUBLIC_API_URL;
+		if (!apiOrigin) throw new Error("Mainnet vault reads are not configured");
+		const base = new URL("/vault/mainnet/", apiOrigin);
+		solanaRpcUrl = new URL("rpc", base).href;
+		indexerUrl = new URL("indexer", base).href;
+		transport = (input, init) => {
+			const request = new Request(input, init);
+			const url = new URL(request.url);
+			if (url.origin !== base.origin || !url.pathname.startsWith(base.pathname))
+				throw new Error("Mainnet vault request has an unexpected destination");
+			const headers = new Headers(request.headers);
+			headers.set("Authorization", `Bearer ${token}`);
+			// A redirect could move sensitive request data to another service.
+			return fetch(new Request(request, { headers, redirect: "error" }));
+		};
+	} else if (network === "devnet" && !solanaRpcUrl) {
 		throw new Error("Devnet RPC is not configured");
-	if (network === "localnet" && solanaRpcUrl)
+	} else if (network === "localnet" && solanaRpcUrl) {
 		throw new Error("Localnet uses the default loopback ports");
+	} else if (network !== "devnet" && network !== "localnet") {
+		throw new Error("Unsupported vault network");
+	}
 	const client = await createSprClient({
 		solanaRpcUrl,
+		indexerUrl,
 		proverUrl: LOCAL_PROVER,
-		fetch: readWithBackoff,
+		fetch: transport,
 	});
 	const seedCopy = new Uint8Array(seed);
 	const key = ShieldedKeypair.fromKeypair(
@@ -182,8 +210,7 @@ export async function openPrivacy(seed: Uint8Array) {
 			value: string,
 			progress: (label: string) => void,
 		) {
-			if (process.env.NEXT_PUBLIC_ENABLE_TEST_DEPOSITS !== "true")
-				throw new Error("Test deposits are disabled");
+			if (!depositsEnabled) throw new Error("Test deposits are disabled");
 			walletSigner(provider, account);
 			const asset = mint ? address(mint) : SOL_MINT;
 			const decimals = (await fetchAssetMetadata(client, asset)).decimals;

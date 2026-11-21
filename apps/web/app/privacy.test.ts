@@ -56,3 +56,46 @@ test("a browser proof request cannot fall back to HTTP", async () => {
 		vi.unstubAllGlobals();
 	}
 });
+
+test("mainnet vault reads use the authenticated indexer and leave transactions disabled", async () => {
+	vi.resetModules();
+	vi.stubEnv("NEXT_PUBLIC_API_URL", "https://api.example.test");
+	vi.stubEnv("NEXT_PUBLIC_VAULT_NETWORK", "mainnet");
+	vi.stubEnv("NEXT_PUBLIC_ENABLE_TEST_DEPOSITS", "true");
+	vi.stubEnv("NEXT_PUBLIC_ENABLE_TEST_SPENDS", "true");
+	const calls: Request[] = [];
+	vi.stubGlobal("fetch", async (request: Request) => {
+		calls.push(request);
+		return new Response("Unavailable", { status: 503 });
+	});
+	try {
+		const { openPrivacy, depositsEnabled, spendingEnabled } = await import(
+			"./privacy"
+		);
+		expect(depositsEnabled).toBe(false);
+		expect(spendingEnabled).toBe(false);
+		const seed = new Uint8Array(32).fill(29);
+		await expect(openPrivacy(seed)).rejects.toThrow("Sign in");
+		const vault = await openPrivacy(seed, "test-session");
+		try {
+			await expect(vault.read()).rejects.toThrow();
+			expect(calls.length).toBeGreaterThan(0);
+			for (const request of calls) {
+				expect(request.url).toMatch(
+					/^https:\/\/api\.example\.test\/vault\/mainnet\//,
+				);
+				expect(request.headers.get("authorization")).toBe(
+					"Bearer test-session",
+				);
+				expect(request.redirect).toBe("error");
+				expect(await request.clone().text()).not.toContain(encode(seed));
+			}
+		} finally {
+			vault.destroy();
+		}
+	} finally {
+		vi.unstubAllGlobals();
+		vi.unstubAllEnvs();
+		vi.resetModules();
+	}
+});

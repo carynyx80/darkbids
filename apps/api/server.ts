@@ -18,6 +18,11 @@ import { SignJWT, jwtVerify } from "jose";
 import pg from "pg";
 import nacl from "tweetnacl";
 import { z } from "zod";
+import {
+	readBoundedPrivacyResponse,
+	readPrivacyRequest,
+	relayPrivacyRead,
+} from "./privacy-rpc";
 import { OfacProvider } from "./screening";
 
 const config = z
@@ -32,6 +37,8 @@ const config = z
 			.default("devnet"),
 		TREASURY_WALLET_ADDRESS: walletAddress.or(z.literal("")).optional(),
 		TREASURY_WALLET_NETWORK: z.enum(["devnet", "mainnet"]).optional(),
+		HELIUS_MAINNET_API_KEY: z.string().trim().min(1).optional(),
+		ENABLE_MAINNET_VAULT_READS: z.enum(["true", "false"]).default("false"),
 		ENABLE_MAINNET: z.enum(["true", "false"]).default("false"),
 	})
 	.parse(process.env);
@@ -120,12 +127,53 @@ api.setErrorHandler((error, _request, reply) => {
 	return reply.code(503).send({ message: "Service temporarily unavailable" });
 });
 
+const mainnetVaultReads =
+	config.ENABLE_MAINNET_VAULT_READS === "true" &&
+	Boolean(config.HELIUS_MAINNET_API_KEY);
+
+api.post("/vault/mainnet/:kind/:method?", async (request, reply) => {
+	const { kind, method } = z
+		.object({
+			kind: z.enum(["rpc", "indexer"]),
+			method: z.string().optional(),
+		})
+		.parse(request.params);
+	if (!mainnetVaultReads || !config.HELIUS_MAINNET_API_KEY)
+		throw new Rejection(503, "Mainnet vault reads are unavailable");
+	await walletOf(request);
+	if (kind === "rpc" && method) throw new Rejection(400, "Invalid RPC path");
+	const payload = readPrivacyRequest(kind, request.body, method);
+	if (!payload)
+		throw new Rejection(403, "This mainnet RPC action is unavailable");
+	const upstream = await relayPrivacyRead(
+		kind,
+		payload,
+		config.HELIUS_MAINNET_API_KEY,
+	).catch(() => {
+		throw new Rejection(502, "Privacy RPC unavailable");
+	});
+	if (upstream.status === 429)
+		throw new Rejection(429, "Privacy RPC rate limit reached");
+	if (
+		!upstream.ok ||
+		!upstream.headers.get("content-type")?.includes("application/json")
+	)
+		throw new Rejection(502, "Privacy RPC unavailable");
+	const body = await readBoundedPrivacyResponse(upstream);
+	if (!body) throw new Rejection(413, "Privacy RPC response exceeds the limit");
+	return reply
+		.header("Cache-Control", "no-store")
+		.type("application/json")
+		.send(body);
+});
+
 api.get("/health", async () => {
 	await pool.query("SELECT 1");
 	return {
 		network: config.NEXT_PUBLIC_NETWORK,
 		database: "connected",
 		settlement: "unavailable",
+		mainnetVaultReads,
 		treasuryWallet: config.TREASURY_WALLET_ADDRESS || null,
 		treasuryNetwork: config.TREASURY_WALLET_ADDRESS
 			? (config.TREASURY_WALLET_NETWORK ?? config.NEXT_PUBLIC_NETWORK)
