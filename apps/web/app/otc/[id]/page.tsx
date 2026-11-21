@@ -1,9 +1,7 @@
 "use client";
-import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
 import { termsInput } from "@veil/core/contracts";
+import { vaultIdentityHost } from "@veil/core/site";
 import {
 	dealEncryptionKey,
 	decode,
@@ -11,6 +9,9 @@ import {
 	openTerms,
 	sealTerms,
 } from "@veil/core/vault";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 import { api, useSession } from "../../providers";
 import { expiry, type Listing, short } from "../types";
 
@@ -52,7 +53,10 @@ export default function Detail() {
 					price: form.get("price"),
 					quote: listing.data.quote,
 				});
-			const key = await dealEncryptionKey(seed, window.location.host);
+			const key = await dealEncryptionKey(
+				seed,
+				vaultIdentityHost(window.location.host),
+			);
 			try {
 				const ciphertext = sealTerms(
 					JSON.stringify(proposal),
@@ -91,7 +95,10 @@ export default function Detail() {
 				undefined,
 				token,
 			);
-			const key = await dealEncryptionKey(seed, window.location.host);
+			const key = await dealEncryptionKey(
+				seed,
+				vaultIdentityHost(window.location.host),
+			);
 			try {
 				const value = termsInput.parse(
 					JSON.parse(openTerms(ciphertext, key.secretKey)),

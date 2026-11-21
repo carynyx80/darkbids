@@ -1,17 +1,18 @@
 "use client";
-import { useParams } from "next/navigation";
-import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
 import { termsInput } from "@veil/core/contracts";
+import { vaultIdentityHost } from "@veil/core/site";
 import {
 	dealEncryptionKey,
 	decode,
 	openTerms,
 	sealTerms,
 } from "@veil/core/vault";
-import { api, useSession } from "../../providers";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useState } from "react";
 import { expiry, short } from "../../otc/types";
+import { api, useSession } from "../../providers";
 
 interface Deal {
 	id: string;
@@ -43,7 +44,10 @@ export default function DealRoom() {
 		const ciphertext = deal?.terms ?? deal?.ciphertext;
 		if (!seed || !ciphertext) return;
 		try {
-			const key = await dealEncryptionKey(seed, window.location.host);
+			const key = await dealEncryptionKey(
+				seed,
+				vaultIdentityHost(window.location.host),
+			);
 			try {
 				const input = JSON.parse(openTerms(ciphertext, key.secretKey));
 				const value = deal?.terms
@@ -71,7 +75,10 @@ export default function DealRoom() {
 				undefined,
 				token,
 			);
-			const key = await dealEncryptionKey(seed, window.location.host);
+			const key = await dealEncryptionKey(
+				seed,
+				vaultIdentityHost(window.location.host),
+			);
 			try {
 				const original = termsInput.parse(
 					JSON.parse(openTerms(listing.ciphertext, key.secretKey)),

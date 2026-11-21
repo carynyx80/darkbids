@@ -1,6 +1,7 @@
+import { vaultIdentityHost } from "@veil/core/site";
+import { decode, deriveSeed, encode, vaultMessage } from "@veil/core/vault";
 import bs58 from "bs58";
 import nacl from "tweetnacl";
-import { deriveSeed, decode, encode, vaultMessage } from "@veil/core/vault";
 
 export type Account = {
 	address: string;
@@ -97,7 +98,7 @@ export function restoreSeed(account: Account) {
 }
 
 export async function unlock(wallet: StandardWallet, account: Account) {
-	const host = window.location.host;
+	const host = vaultIdentityHost(window.location.host);
 	const signature = await signMessage(
 		wallet,
 		account,

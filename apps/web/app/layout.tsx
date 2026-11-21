@@ -1,10 +1,12 @@
+import { PUBLIC_SITE_ORIGIN } from "@veil/core/site";
 import "./styles.css";
 import { SiteFrame } from "./site-frame";
 
-const brandName = "useparlo";
+const brandName = "Primar";
 
 export const metadata = {
 	title: brandName,
+	metadataBase: new URL(PUBLIC_SITE_ORIGIN),
 	description:
 		"Encrypted OTC offers and a private Solana vault for SOL and USDC.",
 	icons: { icon: "/icon.png", apple: "/brand/useparlo-mark.png" },

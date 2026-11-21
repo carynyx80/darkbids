@@ -1,10 +1,11 @@
 "use client";
+import { buckets, categories, quotes } from "@veil/core/config";
+import { listingInput, termsInput } from "@veil/core/contracts";
+import { vaultIdentityHost } from "@veil/core/site";
+import { dealEncryptionKey, encode, sealTerms } from "@veil/core/vault";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { buckets, categories, quotes } from "@veil/core/config";
-import { listingInput, termsInput } from "@veil/core/contracts";
-import { dealEncryptionKey, encode, sealTerms } from "@veil/core/vault";
 import { api, useSession } from "../../providers";
 
 type Fields = {
@@ -35,7 +36,10 @@ export default function NewListing() {
 				quote: values.quote,
 				minimumFill: values.minimumFill || undefined,
 			});
-			const keys = await dealEncryptionKey(seed, window.location.host);
+			const keys = await dealEncryptionKey(
+				seed,
+				vaultIdentityHost(window.location.host),
+			);
 			try {
 				const payload = listingInput.parse({
 					mint: values.hideMint ? null : terms.mint,

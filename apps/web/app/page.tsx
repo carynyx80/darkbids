@@ -26,7 +26,7 @@ export default function Home() {
 					</div>
 				</div>
 			</section>
-			<section className="home-details" aria-label="Explore useparlo">
+			<section className="home-details" aria-label="Explore Primar">
 				<article className="feature-card">
 					<h2>OTC board</h2>
 					<p>

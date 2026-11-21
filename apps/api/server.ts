@@ -31,6 +31,7 @@ const config = z
 		DATABASE_URL: z.url(),
 		JWT_SECRET: z.string().min(32),
 		WEB_ORIGIN: z.url(),
+		ADDITIONAL_WEB_ORIGIN: z.url().optional(),
 		PORT: z.coerce.number().int().min(1).max(65_535).default(4000),
 		HOST: z.enum(["127.0.0.1", "0.0.0.0"]).default("127.0.0.1"),
 		NEXT_PUBLIC_NETWORK: z
@@ -51,6 +52,9 @@ if (config.NEXT_PUBLIC_NETWORK === "mainnet") {
 }
 
 const origin = new URL(config.WEB_ORIGIN).origin;
+const webOrigins = config.ADDITIONAL_WEB_ORIGIN
+	? [origin, new URL(config.ADDITIONAL_WEB_ORIGIN).origin]
+	: [origin];
 const secret = new TextEncoder().encode(config.JWT_SECRET);
 const pool = new pg.Pool({
 	connectionString: config.DATABASE_URL,
@@ -67,7 +71,10 @@ for (const migration of ["001.sql", "002.sql"]) {
 const screening = new OfacProvider();
 const api = Fastify({ logger: false, bodyLimit: 20_000 });
 await api.register(rateLimit, { max: 80, timeWindow: "1 minute" });
-await api.register(cors, { origin, methods: ["GET", "POST", "DELETE"] });
+await api.register(cors, {
+	origin: webOrigins,
+	methods: ["GET", "POST", "DELETE"],
+});
 await api.register(swagger, {
 	openapi: { info: { title: `${APP_NAME} API`, version: "0.1.0" } },
 });
@@ -80,6 +87,14 @@ class Rejection extends Error {
 	) {
 		super(message);
 	}
+}
+
+function authOrigin(request: FastifyRequest) {
+	const requested = request.headers.origin;
+	if (!requested) return origin;
+	if (!webOrigins.includes(requested))
+		throw new Rejection(403, "Wallet sign-in origin is unavailable");
+	return requested;
 }
 
 const walletLimits = new Map<string, number>();
@@ -104,7 +119,7 @@ async function walletOf(
 	const token = request.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
 	if (!token) throw new Rejection(401, "Connect and sign in");
 	const result = await jwtVerify(token, secret, {
-		issuer: origin,
+		issuer: authOrigin(request),
 		audience: "veil-otc",
 		algorithms: ["HS256"],
 	}).catch(() => {
@@ -206,6 +221,7 @@ api.get("/health", async () => {
 });
 
 api.post("/auth/nonce", async (request) => {
+	authOrigin(request);
 	const { wallet } = z
 		.strictObject({ wallet: walletAddress })
 		.parse(request.body);
@@ -222,6 +238,7 @@ api.post("/auth/nonce", async (request) => {
 });
 
 api.post("/auth/verify", async (request) => {
+	const requestOrigin = authOrigin(request);
 	const { wallet, nonce, signature } = z
 		.strictObject({
 			wallet: walletAddress,
@@ -242,7 +259,7 @@ api.post("/auth/verify", async (request) => {
 		!expiry ||
 		!nacl.sign.detached.verify(
 			new TextEncoder().encode(
-				authMessage(origin, wallet, nonce, expiry.toISOString()),
+				authMessage(requestOrigin, wallet, nonce, expiry.toISOString()),
 			),
 			Buffer.from(signature, "base64"),
 			bs58.decode(wallet),
@@ -258,7 +275,7 @@ api.post("/auth/verify", async (request) => {
 	const token = await new SignJWT({})
 		.setProtectedHeader({ alg: "HS256" })
 		.setSubject(wallet)
-		.setIssuer(origin)
+		.setIssuer(requestOrigin)
 		.setAudience("veil-otc")
 		.setIssuedAt()
 		.setExpirationTime("10m")
