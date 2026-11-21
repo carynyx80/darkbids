@@ -7,13 +7,13 @@ export default function Home() {
 				<div className="hero-content">
 					<p className="eyebrow">Private OTC desk on Solana</p>
 					<h1 id="hero-title">
-						Make the deal
+						Private offers.
 						<br />
-						<em>in private.</em>
+						<em>Direct deals.</em>
 					</h1>
 					<p>
 						Find counterparties, negotiate through encrypted offers, and manage
-						SOL and USDC in your private vault.
+						SOL and USDC in a vault powered by Helius Privacy Rings.
 					</p>
 					<div className="actions">
 						<Link className="button primary" href="/otc">

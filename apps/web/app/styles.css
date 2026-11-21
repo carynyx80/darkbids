@@ -1,13 +1,13 @@
 :root {
-	color-scheme: dark;
-	--base: #101114;
-	--raised: #24262e;
-	--panel: #191b20;
-	--line: #343740;
-	--muted: #b8bbc6;
-	--text: #f4f0e8;
-	--accent: #ded8ff;
-	--accent-light: #efebff;
+	color-scheme: light;
+	--base: #f5f2eb;
+	--raised: #ebe7de;
+	--panel: #fdfbf6;
+	--line: #d7d2c7;
+	--muted: #5d5b58;
+	--text: #201f23;
+	--accent: #3d3d62;
+	--accent-light: #343450;
 	--mono: ui-monospace, SFMono-Regular, Consolas, monospace;
 	--ease: cubic-bezier(0.2, 0.75, 0.25, 1);
 }
@@ -60,7 +60,7 @@ a {
 }
 
 header {
-	background: #131419;
+	background: #fdfbf6;
 	border-bottom: 1px solid var(--line);
 }
 .topbar,
@@ -104,6 +104,7 @@ nav a[aria-current] {
 }
 .main-nav a[aria-current] {
 	background: var(--raised);
+	font-weight: 650;
 }
 .main-nav .nav-cta {
 	border: 1px solid var(--line);
@@ -133,7 +134,7 @@ footer .brand-mark {
 	width: 23px;
 }
 .wallet-strip {
-	background: #16171c;
+	background: #efece3;
 	border-bottom: 1px solid var(--line);
 	color: var(--muted);
 	font-size: 0.9rem;
@@ -156,16 +157,13 @@ footer {
 }
 
 .hero {
-	position: relative;
-	isolation: isolate;
-	overflow: hidden;
 	display: grid;
+	grid-template-columns: minmax(0, 1.04fr) minmax(0, 0.96fr);
 	align-items: center;
-	min-height: 530px;
-	padding: clamp(32px, 6vw, 76px);
-	border: 1px solid var(--line);
-	border-radius: 26px;
-	background: #15161b;
+	gap: clamp(24px, 5vw, 72px);
+	min-height: 490px;
+	padding-block: clamp(26px, 6vw, 72px);
+	border-bottom: 1px solid var(--line);
 }
 .hero-content {
 	position: relative;
@@ -174,9 +172,9 @@ footer {
 	gap: 21px;
 }
 .hero h1 {
-	font-size: clamp(3.15rem, 7.9vw, 6.95rem);
+	font-size: clamp(3rem, 6.3vw, 6rem);
 	letter-spacing: -0.05em;
-	font-weight: 690;
+	font-weight: 560;
 	line-height: 0.96;
 }
 .hero h1 em {
@@ -201,12 +199,9 @@ footer {
 	text-transform: uppercase;
 }
 .hero-art {
-	position: absolute;
-	inset: 0 0 0 34%;
-	z-index: -1;
-	background:
-		linear-gradient(90deg, #15161b, #15161b00 42%),
-		url("/brand/leveil-hero.webp") center right / cover no-repeat;
+	aspect-ratio: 1.24;
+	border-radius: 14px;
+	background: #18191d url("/brand/leveil-hero.webp") center / cover no-repeat;
 }
 .hero .button span {
 	margin-left: 9px;
@@ -215,7 +210,7 @@ footer {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: 1px;
-	margin-top: 20px;
+	margin-top: 30px;
 	overflow: hidden;
 	border: 1px solid var(--line);
 	border-radius: 20px;
@@ -274,7 +269,7 @@ button,
 	width: fit-content;
 	min-height: 44px;
 	padding: 9px 17px;
-	border: 1px solid #454855;
+	border: 1px solid #c8c2b5;
 	border-radius: 12px;
 	background: var(--raised);
 	color: var(--text);
@@ -298,7 +293,7 @@ button:disabled {
 .primary {
 	border-color: var(--accent);
 	background: var(--accent);
-	color: #171520;
+	color: #fffdf7;
 }
 .wallet-inner button {
 	min-height: 36px;
@@ -322,7 +317,7 @@ select {
 	padding: 8px 12px;
 	border: 1px solid var(--line);
 	border-radius: 10px;
-	background: #121319;
+	background: #fffdf8;
 	color: var(--text);
 	font: inherit;
 }
@@ -371,9 +366,9 @@ details summary {
 }
 .inline-note {
 	padding: 11px 14px;
-	border: 1px solid #45455a;
+	border: 1px solid #c9c4d6;
 	border-radius: 10px;
-	background: #252435;
+	background: #efedf4;
 }
 .form-width {
 	width: 100%;
@@ -411,7 +406,7 @@ code,
 	color: var(--accent-light);
 	font-size: 0.85rem;
 	padding: 3px 9px;
-	background: #29263a;
+	background: #e8e4f0;
 	border-radius: 6px;
 }
 code {
@@ -487,10 +482,10 @@ code {
 		padding-block: 25px 46px;
 	}
 	.hero {
-		min-height: 500px;
-		align-items: start;
-		padding: 34px 22px 160px;
-		border-radius: 20px;
+		grid-template-columns: 1fr;
+		min-height: auto;
+		gap: 26px;
+		padding-block: 24px 30px;
 	}
 	.hero h1 {
 		font-size: clamp(2.85rem, 11vw, 4.5rem);
@@ -499,10 +494,7 @@ code {
 		gap: 17px;
 	}
 	.hero-art {
-		inset: 31% 0 0;
-		background:
-			linear-gradient(180deg, #15161b, #15161b00 64%),
-			url("/brand/leveil-hero.webp") center 62% / cover no-repeat;
+		aspect-ratio: 2;
 	}
 	.home-details,
 	.grid.two {

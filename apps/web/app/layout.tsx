@@ -1,11 +1,12 @@
-import { APP_NAME } from "@veil/core/config";
 import Link from "next/link";
 import "./styles.css";
 import { MainNav } from "./main-nav";
 import { Providers } from "./providers";
 
+const brandName = "lethe";
+
 export const metadata = {
-	title: APP_NAME,
+	title: brandName,
 	description:
 		"Encrypted OTC offers and a private Solana vault for SOL and USDC.",
 	icons: { icon: "/icon.png", apple: "/brand/leveil-mark.png" },
@@ -20,7 +21,7 @@ export default function Layout({
 					<div className="shell topbar">
 						<Link href="/" className="brand">
 							<span className="brand-mark" aria-hidden="true" />
-							{APP_NAME}
+							{brandName}
 						</Link>
 						<MainNav />
 					</div>
@@ -30,7 +31,7 @@ export default function Layout({
 					<footer className="shell">
 						<Link href="/" className="brand">
 							<span className="brand-mark" aria-hidden="true" />
-							{APP_NAME}
+							{brandName}
 						</Link>
 						<nav aria-label="Resources">
 							<Link href="/status">Status</Link>
