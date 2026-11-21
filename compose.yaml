@@ -1,0 +1,13 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: veil
+      POSTGRES_PASSWORD: veil
+      POSTGRES_DB: veil
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - veil-db:/var/lib/postgresql/data
+volumes:
+  veil-db:
