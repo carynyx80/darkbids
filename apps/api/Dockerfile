@@ -8,6 +8,7 @@ COPY apps/web/package.json apps/web/
 RUN pnpm install --frozen-lockfile --prod --filter @veil/api...
 COPY packages/core packages/core
 COPY apps/api apps/api
+ENV HOST=0.0.0.0
 USER node
 WORKDIR /workspace/apps/api
 CMD ["node", "--import", "tsx", "server.ts"]

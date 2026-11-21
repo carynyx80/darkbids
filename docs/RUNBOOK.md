@@ -30,3 +30,9 @@ Verify the API's `/health`, board initial load, wallet nonce exchange, offer cre
 ## Mainnet gate
 
 The API requires both `NEXT_PUBLIC_NETWORK=mainnet` and `ENABLE_MAINNET=true` before evaluating a mainnet launch. This build rejects mainnet startup even with those settings. Removing that final gate depends on browser-only proving, tested atomic settlement and expiry refunds, transaction and screening end-to-end tests, reviewed legal text, and production infrastructure configuration.
+
+## Verification recorded for this build
+
+The lockfile installed successfully and lint, strict type checking, six unit tests and a Next.js production build passed locally. All 11 requested web and legal routes returned HTTP 200 on the built server. A disposable PostgreSQL instance passed `pnpm test:api` smoke checks for nonce replay rejection, private-route access control, encrypted negotiation, screening denial with an injected feed fixture, wallet rate limiting and fail-closed funding and sealing. The current public OFAC feed was separately downloaded and parsed successfully. A browser wallet, zolana, funded devnet accounts, Vercel and Railway were outside these checks.
+
+To repeat the API smoke test, set `VEIL_TEST_DATABASE_URL` to a disposable loopback Postgres database and run `pnpm test:api`. The script starts a test API on port 4319 with a synthetic screening feed and test wallets. It applies migrations and writes temporary negotiation records.

@@ -1,21 +1,22 @@
 {
-  "name": "veil",
-  "private": true,
-  "packageManager": "pnpm@11.25.0",
-  "engines": {
-    "node": ">=24"
-  },
-  "scripts": {
-    "dev": "node scripts/dev.mjs",
-    "typecheck": "pnpm -r typecheck",
-    "test": "vitest run",
-    "lint": "biome lint .",
-    "build": "pnpm -r build"
-  },
-  "devDependencies": {
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.0",
-    "@biomejs/biome": "^2.4.0",
-    "@types/node": "^24.0.0"
-  }
+	"name": "veil",
+	"private": true,
+	"packageManager": "pnpm@11.25.0",
+	"engines": {
+		"node": ">=24"
+	},
+	"scripts": {
+		"dev": "node scripts/dev.mjs",
+		"typecheck": "pnpm -r typecheck",
+		"test": "vitest run",
+		"lint": "biome lint .",
+		"build": "pnpm -r build",
+		"test:api": "node scripts/api-smoke.mjs"
+	},
+	"devDependencies": {
+		"typescript": "^5.9.3",
+		"vitest": "^4.0.0",
+		"@biomejs/biome": "^2.4.0",
+		"@types/node": "^24.0.0"
+	}
 }

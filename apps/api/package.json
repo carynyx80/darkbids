@@ -1,1 +1,28 @@
-{"name":"@veil/api","private":true,"type":"module","scripts":{"dev":"node --env-file-if-exists=.env --import tsx --watch server.ts","start":"node --import tsx server.ts","typecheck":"tsc --noEmit","build":"tsc --noEmit"},"dependencies":{"@veil/core":"workspace:*","fastify":"^5.0.0","@fastify/cors":"^11.0.0","@fastify/swagger":"^9.0.0","@fastify/swagger-ui":"^5.0.0","@fastify/rate-limit":"^10.0.0","jose":"^6.0.0","pg":"^8.0.0","tsx":"^4.0.0","zod":"^4.0.0","tweetnacl":"^1.0.3","bs58":"^6.0.0"},"devDependencies":{"@types/pg":"^8.0.0"}}
+{
+	"name": "@veil/api",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "node --env-file-if-exists=.env --import tsx --watch server.ts",
+		"start": "node --import tsx server.ts",
+		"typecheck": "tsc --noEmit",
+		"build": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@veil/core": "workspace:*",
+		"fastify": "^5.0.0",
+		"@fastify/cors": "^11.0.0",
+		"@fastify/swagger": "^9.0.0",
+		"@fastify/swagger-ui": "^5.0.0",
+		"@fastify/rate-limit": "^10.0.0",
+		"jose": "^6.0.0",
+		"pg": "^8.0.0",
+		"tsx": "^4.0.0",
+		"zod": "^4.0.0",
+		"tweetnacl": "^1.0.3",
+		"bs58": "^6.0.0"
+	},
+	"devDependencies": {
+		"@types/pg": "^8.0.0"
+	}
+}
