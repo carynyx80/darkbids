@@ -1,6 +1,6 @@
-# VEIL
+# Darkbid
 
-VEIL is a devnet-only Solana OTC negotiation workspace. It supports encrypted listings and offers, seller acceptance with terms encrypted to both parties, and a browser vault with SDK-backed local decryption. Test deposits, confidential sends and withdrawals are gated by preview configuration. Sends and withdrawals use the Helius browser prover. Deal funding, atomic seal, automated refunds, fee collection and treasury transactions are unavailable.
+Darkbid is a devnet-only Solana OTC negotiation workspace. It supports encrypted listings and offers, seller acceptance with terms encrypted to both parties, and a browser vault with SDK-backed local decryption. Test deposits, confidential sends and withdrawals are gated by preview configuration. Sends and withdrawals use the Helius browser prover. Deal funding, atomic seal, automated refunds, fee collection and treasury transactions are unavailable.
 
 ## Run locally
 
@@ -19,7 +19,7 @@ Set the generated value as `JWT_SECRET` in the API environment. To use devnet va
 pnpm dev
 ```
 
-Open [VEIL](http://localhost:3000), [API health](http://localhost:4000/health), or [OpenAPI UI](http://localhost:4000/docs). The launcher starts local Postgres and, in localnet mode, zolana. See the environment templates for running infrastructure separately and [the runbook](docs/RUNBOOK.md) for shutdown and deployment.
+Open [Darkbid](http://localhost:3000), [API health](http://localhost:4000/health), or [OpenAPI UI](http://localhost:4000/docs). The launcher starts local Postgres and, in localnet mode, zolana. See the environment templates for running infrastructure separately and [the runbook](docs/RUNBOOK.md) for shutdown and deployment.
 
 ```sh
 pnpm lint

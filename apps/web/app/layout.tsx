@@ -13,24 +13,27 @@ export default function Layout({
 	return (
 		<html lang="en">
 			<body>
-				<Providers>
-					<header>
-						<div className="shell topbar">
-							<Link href="/" className="brand">
-								<i aria-hidden />
-								{APP_NAME}
+				<header>
+					<div className="shell topbar">
+						<Link href="/" className="brand">
+							<span className="brand-mark" aria-hidden="true" />
+							{APP_NAME}
+						</Link>
+						<nav aria-label="Primary">
+							<Link href="/otc">OTC board</Link>
+							<Link href="/app">Vault</Link>
+							<Link className="nav-cta" href="/otc/new">
+								Create listing
 							</Link>
-							<nav aria-label="Primary">
-								<Link href="/otc">OTC board</Link>
-								<Link href="/app">Vault</Link>
-								<Link href="/status">Status</Link>
-							</nav>
-						</div>
-					</header>
+						</nav>
+					</div>
+				</header>
+				<Providers>
 					<main className="shell">{children}</main>
 					<footer className="shell">
-						<span>{APP_NAME} / Solana devnet workspace</span>
+						<span>{APP_NAME}</span>
 						<nav aria-label="Resources">
+							<Link href="/status">Status</Link>
 							<Link href="/docs">Guide</Link>
 							<Link href="/burns">Burns</Link>
 							<Link href="/terms">Terms</Link>

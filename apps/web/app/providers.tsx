@@ -1,6 +1,7 @@
 "use client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { authMessage } from "@veil/core/contracts";
 import { z } from "zod";
 import { encode } from "@veil/core/vault";
@@ -56,6 +57,11 @@ export function useSession() {
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
+	const pathname = usePathname();
+	const showWallet =
+		pathname === "/app" ||
+		pathname.startsWith("/otc/") ||
+		pathname.startsWith("/deals/");
 	const [query] = useState(() => new QueryClient());
 	const [wallets, setWallets] = useState<StandardWallet[]>([]);
 	const [wallet, setWallet] = useState<StandardWallet>();
@@ -187,59 +193,65 @@ export function Providers({ children }: { children: React.ReactNode }) {
 			<session.Provider
 				value={{ wallet, account, token, seed, lock, authenticate }}
 			>
-				<div className="wallet-strip">
-					<div className="shell wallet-inner">
-						{account ? (
-							<>
-								<span className="mono">
-									{account.address.slice(0, 6)}…{account.address.slice(-5)}
-								</span>
-								<button
-									type="button"
-									onClick={authenticate}
-									disabled={busy || Boolean(token)}
-								>
-									{token
-										? "Desk session active"
-										: seed
-											? "Sign in to desk"
-											: "Unlock vault"}
-								</button>
-								{token && (
-									<button type="button" onClick={authenticate} disabled={busy}>
-										Renew sign-in
+				{showWallet && (
+					<div className="wallet-strip">
+						<div className="shell wallet-inner">
+							{account ? (
+								<>
+									<span className="mono">
+										{account.address.slice(0, 6)}…{account.address.slice(-5)}
+									</span>
+									<button
+										type="button"
+										onClick={authenticate}
+										disabled={busy || Boolean(token)}
+									>
+										{token
+											? "Desk session active"
+											: seed
+												? "Sign in to desk"
+												: "Unlock vault"}
 									</button>
-								)}
-								<button
-									type="button"
-									onClick={() => {
-										lock();
-										setAccount(undefined);
-										setWallet(undefined);
-									}}
-								>
-									Disconnect
-								</button>
-							</>
-						) : wallets.length ? (
-							wallets.map((candidate) => (
-								<button
-									type="button"
-									key={candidate.name}
-									onClick={() => connect(candidate)}
-									disabled={busy}
-								>
-									{candidate.name}
-								</button>
-							))
-						) : (
-							<span>
-								Connect a Solana Wallet Standard extension to use the vault.
-							</span>
-						)}
-						{notice && <span role="status">{notice}</span>}
+									{token && (
+										<button
+											type="button"
+											onClick={authenticate}
+											disabled={busy}
+										>
+											Renew sign-in
+										</button>
+									)}
+									<button
+										type="button"
+										onClick={() => {
+											lock();
+											setAccount(undefined);
+											setWallet(undefined);
+										}}
+									>
+										Disconnect
+									</button>
+								</>
+							) : wallets.length ? (
+								wallets.map((candidate) => (
+									<button
+										type="button"
+										key={candidate.name}
+										onClick={() => connect(candidate)}
+										disabled={busy}
+									>
+										{candidate.name}
+									</button>
+								))
+							) : (
+								<span>
+									Connect a Solana Wallet Standard extension to use the vault.
+								</span>
+							)}
+							{notice && <span role="status">{notice}</span>}
+						</div>
 					</div>
-				</div>
+				)}
 				{children}
 			</session.Provider>
 		</QueryClientProvider>

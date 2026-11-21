@@ -25,9 +25,8 @@ export default function Board() {
 		<section className="stack">
 			<div className="section-head split">
 				<div>
-					<div className="eyebrow">SOLANA DEVNET</div>
 					<h1>OTC board</h1>
-					<p>Browse listings and negotiate with encrypted offers.</p>
+					<p>Browse token listings and make encrypted offers.</p>
 				</div>
 				<Link href="/otc/new" className="button primary">
 					Create listing

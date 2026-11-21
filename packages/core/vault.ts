@@ -1,10 +1,11 @@
 import nacl from "tweetnacl";
-import { APP_NAME } from "./config";
 
+// This exact message determines existing vault keys.
+const vaultIdentity = "VEIL";
 const utf8 = new TextEncoder();
 export const vaultMessage = (host: string, wallet: string) =>
 	utf8.encode(
-		`${APP_NAME} vault unlock v1 | domain:${host} | wallet:${wallet}`,
+		`${vaultIdentity} vault unlock v1 | domain:${host} | wallet:${wallet}`,
 	);
 
 export async function deriveSeed(

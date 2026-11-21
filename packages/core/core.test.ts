@@ -1,6 +1,12 @@
 import { expect, test } from "vitest";
 import { parseUnits, quoteFee } from "./fees";
-import { dealEncryptionKey, deriveSeed, openTerms, sealTerms } from "./vault";
+import {
+	dealEncryptionKey,
+	deriveSeed,
+	openTerms,
+	sealTerms,
+	vaultMessage,
+} from "./vault";
 
 test("fee rounds up at the smallest unit without floating point loss", () => {
 	expect(quoteFee(200n)).toBe(1n);
@@ -37,4 +43,10 @@ test("only the intended recipient can authenticate encrypted terms", async () =>
 	const value = sealTerms("terms", recipient.publicKey);
 	expect(openTerms(value, recipient.secretKey)).toBe("terms");
 	expect(() => openTerms(value, other.secretKey)).toThrow();
+});
+
+test("the rebrand preserves the signed message for existing vaults", () => {
+	expect(new TextDecoder().decode(vaultMessage("test.example", "wallet"))).toBe(
+		"VEIL vault unlock v1 | domain:test.example | wallet:wallet",
+	);
 });

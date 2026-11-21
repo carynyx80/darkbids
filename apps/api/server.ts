@@ -1,3 +1,4 @@
+import { APP_NAME } from "@veil/core/config";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import cors from "@fastify/cors";
@@ -59,7 +60,7 @@ const api = Fastify({ logger: false, bodyLimit: 20_000 });
 await api.register(rateLimit, { max: 80, timeWindow: "1 minute" });
 await api.register(cors, { origin, methods: ["GET", "POST", "DELETE"] });
 await api.register(swagger, {
-	openapi: { info: { title: "VEIL API", version: "0.1.0" } },
+	openapi: { info: { title: `${APP_NAME} API`, version: "0.1.0" } },
 });
 await api.register(swaggerUi, { routePrefix: "/docs" });
 
