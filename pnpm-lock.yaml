@@ -69,6 +69,9 @@ importers:
       '@heliuslabs/spr':
         specifier: 0.9.0-alpha
         version: 0.9.0-alpha(@solana/kit@8.6.0(typescript@5.9.3))(typescript@5.9.3)
+      '@heliuslabs/spr-web-prover':
+        specifier: 0.7.0-alpha
+        version: 0.7.0-alpha
       '@solana/kit':
         specifier: ^8.3.0
         version: 8.6.0(typescript@5.9.3)
@@ -83,7 +86,7 @@ importers:
         version: 6.0.0
       next:
         specifier: ^15.5.0
-        version: 15.5.29(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 15.5.29(@playwright/test@1.65.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react:
         specifier: ^19.0.0
         version: 19.3.1
@@ -100,6 +103,9 @@ importers:
         specifier: ^4.0.0
         version: 4.6.7
     devDependencies:
+      '@playwright/test':
+        specifier: ^1.65.1
+        version: 1.65.1
       '@types/react':
         specifier: ^19.0.0
         version: 19.3.0
@@ -406,6 +412,10 @@ packages:
   '@fastify/swagger@9.9.5':
     resolution: {integrity: sha512-2X/MXoTv3Jhxegju9DwjOTKcDT86q0SDPIuuZDx9DHfRsHzpVfxVIXzP73X+qcEA1j7N+k7Cm95h9esGy/oBgA==}
 
+  '@heliuslabs/spr-web-prover@0.7.0-alpha':
+    resolution: {integrity: sha512-wkg85YuhR5c3QvMv2kQf4StRedZRDyfhOOuvqo1D9q42wsonCDqegVTQnCQYbLvhHF0/kl3jL8TsFvtAkWIbOw==}
+    hasBin: true
+
   '@heliuslabs/spr@0.9.0-alpha':
     resolution: {integrity: sha512-mQVsBnO+Fv/XDlGFAab+ic3Cx0m7nZRd7lRQSNHpR0EhCWZXwPg+2ZLOQkLIzgdum2WFVcWeM0nQqxP098H1Hg==}
     engines: {node: ^22.12.0 || >=24}
@@ -687,6 +697,11 @@ packages:
 
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
+
+  '@playwright/test@1.65.1':
+    resolution: {integrity: sha512-y+NCIRm2LvY4slUVWvGh1nujJ8RF/hEisIsq2mtUPgdQC4L701bq5hZGMhrpeXjACvwvO9tj5dJqhvM6TP9lbw==}
+    engines: {node: '>=20'}
+    hasBin: true
 
   '@rolldown/binding-android-arm-eabi@1.2.19':
     resolution: {integrity: sha512-e+Ebe0WT+9tbXmNKPIiC8YrWAHYwug3m6i4p3rZGGulfZri1jtI4HslT+OZnFf/OIHowWF71DTlHwXBP2SiA7A==}
@@ -1700,6 +1715,16 @@ packages:
     resolution: {integrity: sha512-bk1ZMTwG/Vymx+zPoa28MhNzucFvXJWp3csrSuxuHPSMeUettaCoQ5Jvg07mtC4JGNpcfTwz41oVCnNgBK9+vA==}
     hasBin: true
 
+  playwright-core@1.65.1:
+    resolution: {integrity: sha512-hqPpz7blSMPxWVdoeE1yiBSzXsKiVOd2k+kjCvmUywD2GPO2Dd9HfcWnq9NN0GHbNZDFgZ9JfBFr+X5/BLo0qw==}
+    engines: {node: '>=20'}
+    hasBin: true
+
+  playwright@1.65.1:
+    resolution: {integrity: sha512-vJ1FuoOrNwOKHUIVEvSt3jT1L+wjjDpwhwIstKtfvTh8XIG4FG4bIFuvNdMxi81LGfAhUgUZleVFaOLY4RIUUw==}
+    engines: {node: '>=20'}
+    hasBin: true
+
   postcss@8.4.31:
     resolution: {integrity: sha512-PS08Iboia9mts/2ygV3eLpY5ghnUcfLV/EXTOW1E2qYxJKGGBUtNjN76FYHnMs36RmARn41bC0AZmn+rR0OVpQ==}
     engines: {node: ^10 || ^12 || >=14}
@@ -2241,6 +2266,8 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@heliuslabs/spr-web-prover@0.7.0-alpha': {}
+
   '@heliuslabs/spr@0.9.0-alpha(@solana/kit@8.6.0(typescript@5.9.3))(typescript@5.9.3)':
     dependencies:
       '@hpke/core': 1.10.1
@@ -2454,6 +2481,10 @@ snapshots:
       - encoding
 
   '@pinojs/redact@0.4.0': {}
+
+  '@playwright/test@1.65.1':
+    dependencies:
+      playwright: 1.65.1
 
   '@rolldown/binding-android-arm-eabi@1.2.19':
     optional: true
@@ -3423,7 +3454,7 @@ snapshots:
 
   nanoid@3.3.20: {}
 
-  next@15.5.29(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
+  next@15.5.29(@playwright/test@1.65.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
     dependencies:
       '@next/env': 15.5.29
       '@swc/helpers': 0.5.15
@@ -3441,6 +3472,7 @@ snapshots:
       '@next/swc-linux-x64-musl': 15.5.29
       '@next/swc-win32-arm64-msvc': 15.5.29
       '@next/swc-win32-x64-msvc': 15.5.29
+      '@playwright/test': 1.65.1
       sharp: 0.35.5(@types/node@24.19.2)
     transitivePeerDependencies:
       - '@babel/core'
@@ -3522,6 +3554,12 @@ snapshots:
       safe-stable-stringify: 2.5.0
       sonic-boom: 4.2.1
       thread-stream: 4.2.1
+
+  playwright-core@1.65.1: {}
+
+  playwright@1.65.1:
+    dependencies:
+      playwright-core: 1.65.1
 
   postcss@8.4.31:
     dependencies:

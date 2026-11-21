@@ -33,3 +33,26 @@ test("hydrating a vault makes no request with the seed and sync keeps it local",
 		vi.unstubAllEnvs();
 	}
 });
+
+test("a browser proof request cannot fall back to HTTP", async () => {
+	const fetcher = vi.fn(async () => new Response());
+	vi.stubGlobal("fetch", fetcher);
+	try {
+		const { proofNetworkFetch } = await import("./privacy");
+		await expect(
+			proofNetworkFetch("http://127.0.0.1:3001/prove", {
+				method: "POST",
+				body: '{"witness":"test"}',
+			}),
+		).rejects.toThrow("inside the browser");
+		await expect(
+			proofNetworkFetch("https://example.test/api", {
+				method: "POST",
+				body: '{"nullifier_secret":"test"}',
+			}),
+		).rejects.toThrow("Key material");
+		expect(fetcher).not.toHaveBeenCalled();
+	} finally {
+		vi.unstubAllGlobals();
+	}
+});

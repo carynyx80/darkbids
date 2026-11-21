@@ -1,6 +1,6 @@
 # VEIL
 
-VEIL is a devnet-only Solana OTC negotiation workspace. It supports encrypted listings and offers, seller acceptance with terms encrypted to both parties, and a browser vault with SDK-backed local decryption. Test deposits are disabled by default. Send, withdrawal, deal funding, atomic seal, automated refunds, fee collection and treasury transactions are unavailable.
+VEIL is a devnet-only Solana OTC negotiation workspace. It supports encrypted listings and offers, seller acceptance with terms encrypted to both parties, and a browser vault with SDK-backed local decryption. Test deposits, confidential sends and withdrawals are gated by preview configuration. Sends and withdrawals use the Helius browser prover. Deal funding, atomic seal, automated refunds, fee collection and treasury transactions are unavailable.
 
 ## Run locally
 

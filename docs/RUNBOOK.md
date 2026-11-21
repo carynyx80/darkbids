@@ -2,9 +2,9 @@
 
 ## Local operation
 
-Use the [README](../README.md) to configure and launch. `docker compose down` stops Postgres without deleting its volume. `zolana dev stop` stops the CLI-managed local stack. The web status page checks API availability and network alignment. Vault reads expose SDK errors in the dashboard, and the browser retries HTTP 429 with bounded backoff.
+Use the [README](../README.md) to configure and launch. `docker compose down` stops Postgres without deleting its volume. `zolana dev start --stop` stops the CLI-managed local stack. The web status page checks API availability and network alignment. Vault reads expose SDK errors in the dashboard, and the browser retries HTTP 429 with bounded backoff.
 
-Test deposits are intentionally off. Enable them only in an isolated environment with disposable assets, matching API and frontend networks, and a confirmed recovery plan. The key and address are derived from the specific origin and wallet. Verify version 1 support in the wallet before testing a deposit.
+Test deposits and spends are off by default. Enable them only in an isolated environment with disposable assets, matching API and frontend networks, and a confirmed recovery plan. The key and address are derived from the specific origin and wallet. Verify version 1 support in the wallet before testing a deposit.
 
 ## Deploy a devnet preview
 
@@ -33,6 +33,10 @@ The API requires both `NEXT_PUBLIC_NETWORK=mainnet` and `ENABLE_MAINNET=true` be
 
 ## Verification recorded for this build
 
-The lockfile installed successfully and lint, strict type checking, six unit tests and a Next.js production build passed locally. All 11 requested web and legal routes returned HTTP 200 on the built server. A disposable PostgreSQL instance passed `pnpm test:api` smoke checks for nonce replay rejection, private-route access control, encrypted negotiation, screening denial with an injected feed fixture, wallet rate limiting and fail-closed funding and sealing. The current public OFAC feed was separately downloaded and parsed successfully. A browser wallet, zolana, funded devnet accounts, Vercel and Railway were outside these checks.
+The lockfile installed successfully and lint, strict type checking, seven unit tests and a Next.js production build passed locally. All 11 requested web and legal routes returned HTTP 200 on the built server. A disposable PostgreSQL instance passed `pnpm test:api` smoke checks for nonce replay rejection, private-route access control, encrypted negotiation, screening denial with an injected feed fixture, wallet rate limiting and fail-closed funding and sealing. The current public OFAC feed was separately downloaded and parsed successfully. The opt-in `pnpm test:localnet` test also passed a SOL deposit and local decryption of the indexed balance and history against the pinned zolana validator and Photon. Funded devnet accounts, Vercel and Railway were outside these checks.
 
 To repeat the API smoke test, set `VEIL_TEST_DATABASE_URL` to a disposable loopback Postgres database and run `pnpm test:api`. The script starts a test API on port 4319 with a synthetic screening feed and test wallets. It applies migrations and writes temporary negotiation records.
+
+To exercise the browser vault against disposable localnet wallets, start zolana with Photon, build and serve the web app with `NEXT_PUBLIC_NETWORK=localnet`, `NEXT_PUBLIC_ENABLE_TEST_DEPOSITS=true` and `NEXT_PUBLIC_ENABLE_TEST_SPENDS=true`, then run `pnpm --filter @veil/web exec playwright test`. The browser test defaults to `http://127.0.0.1:4318`; override with `VEIL_E2E_URL`. Install the Playwright browser or set `VEIL_CHROMIUM_EXECUTABLE` to a supported Chromium executable.
+
+The Playwright test passed on localnet with two disposable Wallet Standard fixtures in Chromium. It completed deposit, confidential send and withdrawal and recorded no network requests containing monitored key fields or reaching the prover loopback port. Production browser extension compatibility and funded devnet remain unverified.

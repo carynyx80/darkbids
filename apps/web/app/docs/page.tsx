@@ -27,9 +27,9 @@ export default function Guide() {
 			<article className="panel stack">
 				<h2>Transaction support</h2>
 				<p>
-					Wallets must support version 1 on the selected network to sign a
-					deposit. Send, withdrawal, deal funding and settlement are unavailable
-					in this build.
+					Wallets must support version 1 on the selected network. Enabled test
+					sends and withdrawals use an on-device prover. Deal funding and
+					settlement are unavailable.
 				</p>
 			</article>
 		</section>

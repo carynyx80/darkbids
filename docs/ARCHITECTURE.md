@@ -6,6 +6,6 @@ Wallet Standard authorizes connections and message signing. Unlock and API sign-
 
 Listings carry a seller-only X25519/XSalsa20-Poly1305 envelope, plus explicitly public metadata. Buyers seal offers to the listing encryption key. On acceptance, the seller decrypts listing and offer terms, then encrypts a copy for each participant. Postgres locks the listing row during acceptance and enforces one accepted offer per listing. Authenticated parties retrieve only their own accepted envelope. Acceptance records a negotiation, and expiry is computed from the listing timestamp.
 
-The SDK reads and decrypts Default Ring data in the browser. The vault constructs a proofless deposit with the SDK and requires a Wallet Standard signer that advertises transaction version 1. Explicitly enabled devnet test deposits also require an API network match.
+The SDK reads and decrypts Default Ring data in the browser. The vault constructs a proofless deposit with the SDK and requires a Wallet Standard signer that advertises transaction version 1. Opt-in test sends and withdrawals build proofs in a browser worker using the matching Helius web prover. The local signer and the connected fee payer sign their respective transaction roles. Explicitly enabled devnet vault transactions also require an API network match.
 
 The API has no spend authority. Fund and seal routes screen the calling wallet and fail closed. A production settlement adapter would need to verify the exact program invocation, deal binding, all paid outputs, expiry and chain finality before updating state.

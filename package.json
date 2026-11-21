@@ -11,7 +11,8 @@
 		"test": "vitest run",
 		"lint": "biome lint .",
 		"build": "pnpm -r build",
-		"test:api": "node scripts/api-smoke.mjs"
+		"test:api": "node scripts/api-smoke.mjs",
+		"test:localnet": "VEIL_LOCALNET_TEST=true NEXT_PUBLIC_NETWORK=localnet NEXT_PUBLIC_ENABLE_TEST_DEPOSITS=true vitest run apps/web/app/localnet.test.ts"
 	},
 	"devDependencies": {
 		"typescript": "^5.9.3",

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { formatAmount } from "@heliuslabs/spr";
 import { api, useSession } from "../providers";
-import { network, openPrivacy } from "../privacy";
+import { network, openPrivacy, spendingEnabled } from "../privacy";
 
 type Privacy = Awaited<ReturnType<typeof openPrivacy>>;
 type Snapshot = Awaited<ReturnType<Privacy["read"]>>;
@@ -67,11 +67,18 @@ export default function Dashboard() {
 		}
 	}
 
-	async function deposit(event: React.FormEvent<HTMLFormElement>) {
+	async function transact(
+		kind: "deposit" | "send" | "withdraw",
+		event: React.FormEvent<HTMLFormElement>,
+	) {
 		event.preventDefault();
 		if (!client || !wallet || !account) return;
 		const data = new FormData(event.currentTarget);
+		const mint = String(data.get("mint")).trim();
+		const amount = String(data.get("amount"));
+		const destination = String(data.get("destination")).trim();
 		setSignature("");
+		setNotice("Preparing transaction");
 		setBusy(true);
 		try {
 			if (network === "devnet") {
@@ -79,20 +86,25 @@ export default function Dashboard() {
 				if (health.network !== network)
 					throw new Error("Web and API networks differ");
 			}
-			const tx = await client.deposit(
-				wallet,
-				account,
-				String(data.get("mint")).trim(),
-				String(data.get("amount")),
-				setNotice,
-			);
+			const tx =
+				kind === "deposit"
+					? await client.deposit(wallet, account, mint, amount, setNotice)
+					: await client.spend(
+							kind,
+							wallet,
+							account,
+							mint,
+							amount,
+							destination,
+							setNotice,
+						);
 			setSignature(tx);
-			setNotice("Deposit confirmed");
+			setNotice("Transaction confirmed");
 			await client
 				.read()
 				.then(setSnapshot)
 				.catch(() =>
-					setNotice("Deposit confirmed. Refresh to update balances."),
+					setNotice("Transaction confirmed. Refresh to update balances."),
 				);
 		} catch (error) {
 			setNotice(errorLabel(error));
@@ -150,7 +162,10 @@ export default function Dashboard() {
 								<p>{busy ? "Syncing…" : "Balances unavailable."}</p>
 							)}
 						</article>
-						<form className="panel stack" onSubmit={deposit}>
+						<form
+							className="panel stack"
+							onSubmit={(event) => transact("deposit", event)}
+						>
 							<h2>Deposit</h2>
 							<label>
 								SPL mint (optional for SOL)
@@ -173,8 +188,8 @@ export default function Dashboard() {
 								</p>
 							</div>
 							<label className="check">
-								<input type="checkbox" required /> I am using test assets and
-								understand withdrawal is unavailable in this build.
+								<input type="checkbox" required /> I am using disposable test
+								assets.
 							</label>
 							{process.env.NEXT_PUBLIC_ENABLE_TEST_DEPOSITS === "true" ? (
 								<button
@@ -201,25 +216,44 @@ export default function Dashboard() {
 						</div>
 					)}
 					<div className="grid two">
-						<article className="panel">
-							<h2>Send</h2>
-							<p>Unavailable while browser-only proving is pending.</p>
-							<div className="inline-note">
-								<strong>What the chain sees</strong>
-								<p>
-									Addresses and timing are public. The asset and amount are
-									encrypted.
-								</p>
-							</div>
-						</article>
-						<article className="panel">
-							<h2>Withdraw</h2>
-							<p>Unavailable while browser-only proving is pending.</p>
-							<div className="inline-note">
-								<strong>What the chain sees</strong>
-								<p>Sender, recipient, timing, mint and amount are public.</p>
-							</div>
-						</article>
+						{(["send", "withdraw"] as const).map((kind) => (
+							<form
+								className="panel stack"
+								key={kind}
+								onSubmit={(event) => transact(kind, event)}
+							>
+								<h2>{kind === "send" ? "Send" : "Withdraw"}</h2>
+								<label>
+									SPL mint (optional for SOL)
+									<input name="mint" placeholder="SOL" />
+								</label>
+								<label>
+									Amount
+									<input name="amount" inputMode="decimal" required />
+								</label>
+								<label>
+									{kind === "send"
+										? "Shielded receiving address"
+										: "Public wallet address"}
+									<input name="destination" required />
+								</label>
+								<div className="inline-note">
+									<strong>What the chain sees</strong>
+									<p>
+										{kind === "send"
+											? "Addresses and timing are public. The asset and amount are encrypted."
+											: "Sender, recipient, timing, mint and amount are public."}
+									</p>
+								</div>
+								{spendingEnabled ? (
+									<button type="submit" disabled={!client || busy}>
+										Review transaction
+									</button>
+								) : (
+									<p>Test spending is disabled in this environment.</p>
+								)}
+							</form>
+						))}
 					</div>
 					<article className="panel">
 						<h2>History</h2>
