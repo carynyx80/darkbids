@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { APP_NAME } from "@veil/core/config";
 import "./styles.css";
+import { MainNav } from "./main-nav";
 import { Providers } from "./providers";
 
 export const metadata = {
@@ -19,13 +20,7 @@ export default function Layout({
 							<span className="brand-mark" aria-hidden="true" />
 							{APP_NAME}
 						</Link>
-						<nav aria-label="Primary">
-							<Link href="/otc">OTC board</Link>
-							<Link href="/app">Vault</Link>
-							<Link className="nav-cta" href="/otc/new">
-								Create listing
-							</Link>
-						</nav>
+						<MainNav />
 					</div>
 				</header>
 				<Providers>

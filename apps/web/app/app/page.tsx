@@ -121,8 +121,11 @@ export default function Dashboard() {
 				<p>View private balances and history on this device.</p>
 			</div>
 			{!seed ? (
-				<div className="panel">
-					Connect and unlock your wallet above to open the vault.
+				<div className="panel board-state">
+					<h2>Your vault is locked</h2>
+					<p>
+						Connect and unlock your wallet to view private balances and history.
+					</p>
 				</div>
 			) : (
 				<>

@@ -22,7 +22,7 @@ export default function Board() {
 		retry: false,
 	});
 	return (
-		<section className="stack">
+		<section className="stack board">
 			<div className="section-head split">
 				<div>
 					<h1>OTC board</h1>
@@ -78,7 +78,9 @@ export default function Board() {
 				</label>
 			</div>
 			{query.isPending ? (
-				<div className="panel">Loading listings…</div>
+				<div className="panel board-state" role="status">
+					Loading listings…
+				</div>
 			) : query.isError ? (
 				<div className="panel split">
 					<span role="alert">{query.error.message}</span>
@@ -89,7 +91,7 @@ export default function Board() {
 			) : query.data.items.length ? (
 				<div className="grid two">
 					{query.data.items.map((item) => (
-						<article className="panel stack" key={item.id}>
+						<article className="panel stack listing-card" key={item.id}>
 							<div className="split">
 								<h2>{item.category}</h2>
 								<span className="tag">{item.quote}</span>
@@ -116,25 +118,46 @@ export default function Board() {
 					))}
 				</div>
 			) : (
-				<div className="panel">No active listings match these filters.</div>
+				<div className="panel board-state">
+					<h2>No listings found</h2>
+					<p>
+						{category || quote
+							? "No active listings match these filters."
+							: "New listings will appear here."}
+					</p>
+					{(category || quote) && (
+						<button
+							type="button"
+							onClick={() => {
+								setCategory("");
+								setQuote("");
+								setPage(1);
+							}}
+						>
+							Clear filters
+						</button>
+					)}
+				</div>
 			)}
-			<div className="actions">
-				<button
-					type="button"
-					disabled={page === 1}
-					onClick={() => setPage(page - 1)}
-				>
-					Previous
-				</button>
-				<span>Page {page}</span>
-				<button
-					type="button"
-					disabled={!query.data?.hasNext}
-					onClick={() => setPage(page + 1)}
-				>
-					Next
-				</button>
-			</div>
+			{(page > 1 || query.data?.hasNext) && (
+				<div className="actions pagination">
+					<button
+						type="button"
+						disabled={page === 1}
+						onClick={() => setPage(page - 1)}
+					>
+						Previous
+					</button>
+					<span>Page {page}</span>
+					<button
+						type="button"
+						disabled={!query.data?.hasNext}
+						onClick={() => setPage(page + 1)}
+					>
+						Next
+					</button>
+				</div>
+			)}
 		</section>
 	);
 }
