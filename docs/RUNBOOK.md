@@ -40,3 +40,9 @@ To repeat the API smoke test, set `VEIL_TEST_DATABASE_URL` to a disposable loopb
 To exercise the browser vault against disposable localnet wallets, start zolana with Photon, build and serve the web app with `NEXT_PUBLIC_NETWORK=localnet`, `NEXT_PUBLIC_ENABLE_TEST_DEPOSITS=true` and `NEXT_PUBLIC_ENABLE_TEST_SPENDS=true`, then run `pnpm --filter @veil/web exec playwright test`. The browser test defaults to `http://127.0.0.1:4318`; override with `VEIL_E2E_URL`. Install the Playwright browser or set `VEIL_CHROMIUM_EXECUTABLE` to a supported Chromium executable.
 
 The Playwright test passed on localnet with two disposable Wallet Standard fixtures in Chromium. It completed deposit, confidential send and withdrawal and recorded no network requests containing monitored key fields or reaching the prover loopback port. Production browser extension compatibility and funded devnet remain unverified.
+
+## Hosted devnet preview
+
+The [Vercel staging frontend](https://veil-devnet-carynyx1.vercel.app) requires Vercel access. Its configured API is the [Railway devnet service](https://veil-api-devnet.up.railway.app/health). The Railway API uses private Postgres networking, with an exact CORS origin matching the Vercel alias. Keep the alias stable because the vault is derived from the browser origin.
+
+Hosted checks passed for frontend page delivery and the configured API bundle, Postgres connectivity, CORS preflight, wallet sign-in and replay rejection, live screening, encrypted listing and offer, acceptance, buyer-side decryption and the settlement guard. The disposable listing was canceled. Hosted vault transactions remain disabled and the deployment has no devnet Helius RPC configured.
