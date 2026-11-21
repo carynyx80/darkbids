@@ -29,6 +29,7 @@ const config = z
 		NEXT_PUBLIC_NETWORK: z
 			.enum(["localnet", "devnet", "mainnet"])
 			.default("devnet"),
+		TREASURY_WALLET_ADDRESS: walletAddress.or(z.literal("")).optional(),
 		ENABLE_MAINNET: z.enum(["true", "false"]).default("false"),
 	})
 	.parse(process.env);
@@ -123,6 +124,7 @@ api.get("/health", async () => {
 		network: config.NEXT_PUBLIC_NETWORK,
 		database: "connected",
 		settlement: "unavailable",
+		treasuryWallet: config.TREASURY_WALLET_ADDRESS || null,
 	};
 });
 
