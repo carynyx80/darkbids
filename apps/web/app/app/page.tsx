@@ -3,6 +3,8 @@ import { formatAmount } from "@heliuslabs/spr";
 import { useEffect, useState } from "react";
 import {
 	depositsEnabled,
+	MAINNET_USDC_MINT,
+	mainnetUsdcEnabled,
 	network,
 	openPrivacy,
 	spendingEnabled,
@@ -15,6 +17,27 @@ const errorLabel = (error: unknown) =>
 	error instanceof Error ? error.message : "Vault action failed";
 const explorer = (signature: string) =>
 	`https://solscan.io/tx/${signature}${network === "devnet" ? "?cluster=devnet" : ""}`;
+
+function VaultAssetField() {
+	if (network === "mainnet") {
+		if (!mainnetUsdcEnabled) return null;
+		return (
+			<label>
+				Asset
+				<select name="mint">
+					<option value="">SOL</option>
+					<option value={MAINNET_USDC_MINT}>USDC</option>
+				</select>
+			</label>
+		);
+	}
+	return (
+		<label>
+			SPL mint (optional for SOL)
+			<input name="mint" placeholder="SOL" />
+		</label>
+	);
+}
 
 export default function Dashboard() {
 	const { seed, account, wallet, lock, token } = useSession();
@@ -151,7 +174,9 @@ export default function Dashboard() {
 					{network === "mainnet" && !depositsEnabled
 						? "View mainnet balances and history, and simulate a SOL deposit."
 						: network === "mainnet"
-							? "Deposit, send, and withdraw SOL on mainnet."
+							? mainnetUsdcEnabled
+								? "Deposit, send, and withdraw SOL and USDC on mainnet."
+								: "Deposit, send, and withdraw SOL on mainnet."
 							: "View private balances and history on this device."}
 				</p>
 			</div>
@@ -189,7 +214,11 @@ export default function Dashboard() {
 												<strong>
 													{formatAmount(balance.amount, balance.decimals)}
 												</strong>
-												<code>{balance.mint}</code>
+												<code>
+													{balance.mint === MAINNET_USDC_MINT
+														? "USDC"
+														: balance.mint}
+												</code>
 											</li>
 										))}
 									</ul>
@@ -230,12 +259,7 @@ export default function Dashboard() {
 								onSubmit={(event) => transact("deposit", event)}
 							>
 								<h2>Deposit</h2>
-								{network !== "mainnet" && (
-									<label>
-										SPL mint (optional for SOL)
-										<input name="mint" placeholder="SOL" />
-									</label>
-								)}
+								<VaultAssetField />
 								<label>
 									Amount
 									<input
@@ -291,12 +315,7 @@ export default function Dashboard() {
 								onSubmit={(event) => transact(kind, event)}
 							>
 								<h2>{kind === "send" ? "Send" : "Withdraw"}</h2>
-								{network !== "mainnet" && (
-									<label>
-										SPL mint (optional for SOL)
-										<input name="mint" placeholder="SOL" />
-									</label>
-								)}
+								<VaultAssetField />
 								<label>
 									Amount
 									<input name="amount" inputMode="decimal" required />

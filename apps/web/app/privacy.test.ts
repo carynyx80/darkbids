@@ -1,5 +1,5 @@
-import { expect, test, vi } from "vitest";
 import { encode } from "@veil/core/vault";
+import { expect, test, vi } from "vitest";
 
 test("hydrating a vault makes no request with the seed and sync keeps it local", async () => {
 	const requests: string[] = [];
@@ -95,6 +95,32 @@ test("mainnet vault reads use the authenticated indexer and leave transactions d
 		}
 	} finally {
 		vi.unstubAllGlobals();
+		vi.unstubAllEnvs();
+		vi.resetModules();
+	}
+});
+
+test("mainnet accepts only SOL and opt-in native USDC for vault transactions", async () => {
+	vi.stubEnv("NEXT_PUBLIC_VAULT_NETWORK", "mainnet");
+	vi.stubEnv("NEXT_PUBLIC_ENABLE_MAINNET_VAULT_WRITES", "true");
+	const otherMint = "So11111111111111111111111111111111111111112";
+	try {
+		vi.resetModules();
+		vi.stubEnv("NEXT_PUBLIC_ENABLE_MAINNET_USDC", "false");
+		const solOnly = await import("./privacy");
+		expect(solOnly.resolveVaultAsset("")).toBeTruthy();
+		expect(() =>
+			solOnly.resolveVaultAsset(solOnly.MAINNET_USDC_MINT),
+		).toThrow();
+
+		vi.resetModules();
+		vi.stubEnv("NEXT_PUBLIC_ENABLE_MAINNET_USDC", "true");
+		const solAndUsdc = await import("./privacy");
+		expect(solAndUsdc.resolveVaultAsset(solAndUsdc.MAINNET_USDC_MINT)).toBe(
+			solAndUsdc.MAINNET_USDC_MINT,
+		);
+		expect(() => solAndUsdc.resolveVaultAsset(otherMint)).toThrow();
+	} finally {
 		vi.unstubAllEnvs();
 		vi.resetModules();
 	}

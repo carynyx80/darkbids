@@ -34,6 +34,23 @@ export const network =
 const mainnetWrites =
 	network === "mainnet" &&
 	process.env.NEXT_PUBLIC_ENABLE_MAINNET_VAULT_WRITES === "true";
+export const MAINNET_USDC_MINT = address(
+	"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+);
+export const mainnetUsdcEnabled =
+	mainnetWrites && process.env.NEXT_PUBLIC_ENABLE_MAINNET_USDC === "true";
+
+export function resolveVaultAsset(mint: string) {
+	const asset = mint ? address(mint) : SOL_MINT;
+	if (
+		network === "mainnet" &&
+		asset !== SOL_MINT &&
+		(!mainnetUsdcEnabled || asset !== MAINNET_USDC_MINT)
+	)
+		throw new Error("This asset is unavailable in the mainnet vault");
+	return asset;
+}
+
 export const depositsEnabled =
 	mainnetWrites ||
 	(network !== "mainnet" &&
@@ -276,9 +293,7 @@ export async function openPrivacy(seed: Uint8Array, token?: string) {
 		) {
 			if (!depositsEnabled) throw new Error("Vault deposits are disabled");
 			walletSigner(provider, account);
-			const asset = mint ? address(mint) : SOL_MINT;
-			if (mainnetWrites && asset !== SOL_MINT)
-				throw new Error("The mainnet vault supports SOL only");
+			const asset = resolveVaultAsset(mint);
 			const decimals = (await fetchAssetMetadata(client, asset)).decimals;
 			const feePayer = address(account.address);
 			const tokenProgram =
@@ -310,9 +325,7 @@ export async function openPrivacy(seed: Uint8Array, token?: string) {
 				kind === "send"
 					? ShieldedAddress.fromBytes(decode(destination))
 					: address(destination);
-			const asset = mint ? address(mint) : SOL_MINT;
-			if (mainnetWrites && asset !== SOL_MINT)
-				throw new Error("The mainnet vault supports SOL only");
+			const asset = resolveVaultAsset(mint);
 			const { decimals } = await fetchAssetMetadata(client, asset, context);
 			const amount = parseUnits(value, decimals);
 			await syncWallet({ client, wallet, keys }, context);
