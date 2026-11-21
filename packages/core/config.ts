@@ -1,4 +1,4 @@
-export const APP_NAME = "Darkbid";
+export const APP_NAME = "leveil";
 export const PLATFORM_FEE_BPS = 50n;
 export const LISTING_FEE_LAMPORTS = 20_000_000n;
 export const SOL_MINT = "So11111111111111111111111111111111111111112";
