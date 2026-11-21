@@ -12,6 +12,10 @@ import {
 	offerInput,
 	walletAddress,
 } from "@veil/core/contracts";
+import {
+	settlementApprovalInput,
+	settlementApprovalMessage,
+} from "@veil/core/settlement-approval";
 import bs58 from "bs58";
 import Fastify, { type FastifyRequest } from "fastify";
 import { jwtVerify, SignJWT } from "jose";
@@ -60,7 +64,7 @@ const pool = new pg.Pool({
 	connectionString: config.DATABASE_URL,
 	connectionTimeoutMillis: 3000,
 });
-for (const migration of ["001.sql", "002.sql"]) {
+for (const migration of ["001.sql", "002.sql", "003.sql"]) {
 	await pool.query(
 		await readFile(
 			new URL(`./migrations/${migration}`, import.meta.url),
@@ -410,12 +414,25 @@ api.get("/deals/:id", async (request) => {
      WHEN o.accepted_at IS NOT NULL THEN 'ACCEPTED' ELSE 'OFFERED' END AS state,
      CASE WHEN l.seller=$2 THEN o.ciphertext END AS ciphertext,
      CASE WHEN l.seller=$2 THEN o.seller_terms ELSE o.buyer_terms END AS terms,
-     CASE WHEN l.seller=$2 THEN o.encryption_key END AS buyer_encryption_key
+     CASE WHEN l.seller=$2 THEN o.encryption_key END AS buyer_encryption_key,
+     CASE WHEN l.seller=$2 THEN o.encryption_key ELSE l.encryption_key END AS counterparty_encryption_key,
+     CASE WHEN l.seller=$2 THEN
+       (SELECT s.commitment FROM settlement_approval s WHERE s.offer_id=o.id AND s.wallet=o.buyer)
+     ELSE
+       (SELECT s.commitment FROM settlement_approval s WHERE s.offer_id=o.id AND s.wallet=l.seller)
+     END AS counterparty_commitment,
+     (SELECT s.commitment FROM settlement_approval s WHERE s.offer_id=o.id AND s.wallet=$2) AS settlement_commitment
      FROM offer o JOIN listing l ON l.id=o.listing_id WHERE o.id=$1 AND ($2=l.seller OR $2=o.buyer)`,
 		[idOf(request), wallet],
 	);
 	if (!result.rowCount) throw new Rejection(404, "Deal unavailable");
-	return result.rows[0];
+	return {
+		...result.rows[0],
+		settlement_treasury:
+			config.TREASURY_WALLET_NETWORK === "mainnet"
+				? config.TREASURY_WALLET_ADDRESS || null
+				: null,
+	};
 });
 
 api.post("/deals/:id/accept", async (request) => {
@@ -456,6 +473,75 @@ api.post("/deals/:id/accept", async (request) => {
 		client.release();
 	}
 	return { state: "ACCEPTED" };
+});
+
+api.post("/deals/:id/settlement-approval", async (request) => {
+	const wallet = await walletOf(request);
+	const id = idOf(request);
+	const input = settlementApprovalInput.parse(request.body);
+	const treasury = config.TREASURY_WALLET_ADDRESS;
+	if (!treasury || config.TREASURY_WALLET_NETWORK !== "mainnet")
+		throw new Rejection(503, "Mainnet settlement terms are unavailable");
+	await screen(wallet);
+	const client = await pool.connect();
+	try {
+		await client.query("BEGIN");
+		const selection = await client.query<{
+			seller: string;
+			buyer: string;
+			expires_at: Date;
+		}>(
+			`SELECT l.seller, o.buyer, l.expires_at FROM offer o JOIN listing l ON l.id=o.listing_id
+			 WHERE o.id=$1 AND ($2=l.seller OR $2=o.buyer)
+			 AND o.accepted_at IS NOT NULL AND NOT l.cancelled AND l.expires_at > now()
+			 FOR UPDATE OF l, o`,
+			[id, wallet],
+		);
+		const deal = selection.rows[0];
+		if (!deal) throw new Rejection(404, "Active accepted deal unavailable");
+		if (deal.seller === deal.buyer)
+			throw new Rejection(409, "Settlement requires two different wallets");
+		const signature = Buffer.from(input.signature, "base64");
+		const message = settlementApprovalMessage(
+			{
+				id,
+				seller: deal.seller,
+				buyer: deal.buyer,
+				expiresAt: deal.expires_at.toISOString(),
+			},
+			treasury,
+			input.commitment,
+		);
+		if (
+			signature.length !== 64 ||
+			!nacl.sign.detached.verify(message, signature, bs58.decode(wallet))
+		)
+			throw new Rejection(401, "Invalid settlement approval signature");
+
+		const existing = await client.query<{ commitment: string }>(
+			"SELECT commitment FROM settlement_approval WHERE offer_id=$1",
+			[id],
+		);
+		if (
+			existing.rows.some((approval) => approval.commitment !== input.commitment)
+		)
+			throw new Rejection(
+				409,
+				"Settlement terms differ from the recorded approval",
+			);
+		await client.query(
+			`INSERT INTO settlement_approval (offer_id, wallet, commitment, signature)
+			 VALUES ($1,$2,$3,$4) ON CONFLICT (offer_id,wallet) DO NOTHING`,
+			[id, wallet, input.commitment, input.signature],
+		);
+		await client.query("COMMIT");
+		return { approved: true };
+	} catch (error) {
+		await client.query("ROLLBACK");
+		throw error;
+	} finally {
+		client.release();
+	}
 });
 
 for (const action of ["fund", "seal"]) {

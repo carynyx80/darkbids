@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { createRequire } from "node:module";
 import { randomBytes } from "node:crypto";
+import { createRequire } from "node:module";
 
 const database = process.env.VEIL_TEST_DATABASE_URL;
 if (!database || new URL(database).hostname !== "127.0.0.1") {
@@ -17,6 +17,7 @@ const keypair = () => {
 	const key = nacl.sign.keyPair();
 	return { ...key, address: bs58.encode(key.publicKey) };
 };
+const treasury = keypair().address;
 const seller = keypair();
 const buyer = keypair();
 const blocked = keypair();
@@ -37,6 +38,8 @@ const api = spawn(
 			JWT_SECRET: randomBytes(32).toString("hex"),
 			DATABASE_URL: database,
 			NEXT_PUBLIC_NETWORK: "devnet",
+			TREASURY_WALLET_ADDRESS: treasury,
+			TREASURY_WALLET_NETWORK: "mainnet",
 		},
 		stdio: "inherit",
 	},
@@ -141,6 +144,59 @@ try {
 	assert.equal(accepted.state, "ACCEPTED");
 	assert.equal(accepted.terms, ciphertext);
 	assert.equal(accepted.ciphertext, null);
+	const commitment = Buffer.alloc(32, 73).toString("base64");
+	const agreement = {
+		id: offer.id,
+		seller: seller.address,
+		buyer: buyer.address,
+		expiresAt: new Date(accepted.expires_at).toISOString(),
+	};
+	const message = (terms, digest) =>
+		new TextEncoder().encode(
+			[
+				"Primar OTC settlement terms v1 | Solana mainnet",
+				`Deal: ${terms.id}`,
+				`Seller: ${terms.seller}`,
+				`Buyer: ${terms.buyer}`,
+				`Expiry: ${terms.expiresAt}`,
+				`Treasury: ${treasury}`,
+				"Quote fee basis points: 50",
+				`Terms commitment: ${digest}`,
+				"Approval records the terms. It does not transfer funds.",
+			].join("\n"),
+		);
+	const approve = (pair, token, digest, status, terms = agreement) =>
+		call(`${room}/settlement-approval`, status, {
+			method: "POST",
+			token,
+			body: {
+				commitment: digest,
+				signature: Buffer.from(
+					nacl.sign.detached(message(terms, digest), pair.secretKey),
+				).toString("base64"),
+			},
+		});
+	await approve(outsider, outsiderToken, commitment, 404);
+	await approve(seller, sellerToken, commitment, 401, {
+		...agreement,
+		buyer: outsider.address,
+	});
+	await approve(seller, sellerToken, commitment, 200);
+	assert.equal(
+		(await call(room, 200, { token: buyerToken })).counterparty_commitment,
+		commitment,
+	);
+	await approve(
+		buyer,
+		buyerToken,
+		Buffer.alloc(32, 74).toString("base64"),
+		409,
+	);
+	await approve(buyer, buyerToken, commitment, 200);
+	await approve(buyer, buyerToken, commitment, 200);
+	const approved = await call(room, 200, { token: buyerToken });
+	assert.equal(approved.settlement_commitment, commitment);
+	assert.equal(approved.counterparty_commitment, commitment);
 	await call(`${room}/fund`, 503, { method: "POST", token: sellerToken });
 	await call(`${room}/seal`, 503, { method: "POST", token: buyerToken });
 	await call(`${room}/seal`, 403, { method: "POST", token: blockedToken });

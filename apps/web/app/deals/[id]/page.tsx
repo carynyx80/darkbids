@@ -1,10 +1,15 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
 import { termsInput } from "@veil/core/contracts";
+import {
+	prepareSettlementApproval,
+	settlementApprovalMessage,
+} from "@veil/core/settlement-approval";
 import { vaultIdentityHost } from "@veil/core/site";
 import {
 	dealEncryptionKey,
 	decode,
+	encode,
 	openTerms,
 	sealTerms,
 } from "@veil/core/vault";
@@ -13,6 +18,7 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { expiry, short } from "../../otc/types";
 import { api, useSession } from "../../providers";
+import { signMessage } from "../../wallet";
 
 interface Deal {
 	id: string;
@@ -24,12 +30,26 @@ interface Deal {
 	ciphertext: string | null;
 	terms: string | null;
 	buyer_encryption_key: string | null;
+	counterparty_encryption_key: string | null;
+	settlement_treasury: string | null;
+	settlement_commitment: string | null;
+	counterparty_commitment: string | null;
 }
 
 export default function DealRoom() {
 	const { id } = useParams<{ id: string }>();
-	const { token, seed, account } = useSession();
+	const { token, seed, account, wallet } = useSession();
 	const [terms, setTerms] = useState("");
+	const [preparedTerms, setPreparedTerms] = useState<
+		{
+			id: string;
+			wallet: string;
+			ciphertext: string;
+			treasury: string;
+			quote: string;
+		} & Awaited<ReturnType<typeof prepareSettlementApproval>>
+	>();
+	const [approvalNotice, setApprovalNotice] = useState("");
 	const [notice, setNotice] = useState("");
 	const [busy, setBusy] = useState(false);
 	const query = useQuery({
@@ -40,6 +60,16 @@ export default function DealRoom() {
 		refetchInterval: 15_000,
 	});
 	const deal = query.data;
+	const approval =
+		seed &&
+		deal &&
+		preparedTerms &&
+		preparedTerms.id === deal.id &&
+		preparedTerms.wallet === account?.address &&
+		preparedTerms.ciphertext === deal.terms &&
+		preparedTerms.treasury === deal.settlement_treasury
+			? preparedTerms
+			: undefined;
 	async function reveal() {
 		const ciphertext = deal?.terms ?? deal?.ciphertext;
 		if (!seed || !ciphertext) return;
@@ -57,6 +87,38 @@ export default function DealRoom() {
 				setTerms(
 					`${value.size} tokens at ${value.price} ${value.quote} each${asset}`,
 				);
+				if (
+					deal?.state === "ACCEPTED" &&
+					deal.terms &&
+					account &&
+					deal.settlement_treasury &&
+					deal.counterparty_encryption_key
+				) {
+					setApprovalNotice("");
+					try {
+						const prepared = await prepareSettlementApproval({
+							dealId: deal.id,
+							terms: termsInput.parse(value),
+							treasury: deal.settlement_treasury,
+							ownSecretKey: key.secretKey,
+							otherPublicKey: decode(deal.counterparty_encryption_key),
+						});
+						setPreparedTerms({
+							...prepared,
+							id: deal.id,
+							wallet: account.address,
+							ciphertext: deal.terms,
+							treasury: deal.settlement_treasury,
+							quote: value.quote,
+						});
+					} catch (error) {
+						setApprovalNotice(
+							error instanceof Error
+								? error.message
+								: "Could not prepare settlement terms",
+						);
+					}
+				}
 			} finally {
 				key.secretKey.fill(0);
 			}
@@ -113,6 +175,43 @@ export default function DealRoom() {
 			setBusy(false);
 		}
 	}
+	async function approveSettlement() {
+		if (!approval || !deal || !account || !wallet || !token) return;
+		setBusy(true);
+		setApprovalNotice("");
+		try {
+			const message = settlementApprovalMessage(
+				{
+					id: deal.id,
+					seller: deal.seller,
+					buyer: deal.buyer,
+					expiresAt: new Date(deal.expires_at).toISOString(),
+				},
+				approval.treasury,
+				approval.commitment,
+			);
+			const signature = await signMessage(wallet, account, message);
+			await api(
+				`/deals/${deal.id}/settlement-approval`,
+				{
+					method: "POST",
+					body: JSON.stringify({
+						commitment: approval.commitment,
+						signature: encode(signature),
+					}),
+				},
+				token,
+			);
+			await query.refetch();
+		} catch (error) {
+			setApprovalNotice(
+				error instanceof Error ? error.message : "Could not record approval",
+			);
+		} finally {
+			setBusy(false);
+		}
+	}
+
 	return (
 		<section className="stack">
 			<div className="section-head">
@@ -169,18 +268,70 @@ export default function DealRoom() {
 					</article>
 					<article className="panel stack">
 						<h2>Settlement</h2>
-						<p>
-							Funding and atomic settlement are unavailable. Acceptance is
-							recorded as a negotiation status.
-						</p>
-						<div className="actions">
-							<button type="button" disabled>
-								Fund
-							</button>
-							<button type="button" disabled>
-								Seal
-							</button>
-						</div>
+						{deal.state === "ACCEPTED" && deal.settlement_treasury && (
+							<>
+								<p>
+									Both wallets can sign the agreed terms. Assets and amounts
+									will be public if the trade settles on Solana.
+								</p>
+								<dl>
+									<div>
+										<dt>Your approval</dt>
+										<dd>{deal.settlement_commitment ? "Signed" : "Pending"}</dd>
+									</div>
+									<div>
+										<dt>Counterparty approval</dt>
+										<dd>
+											{deal.counterparty_commitment ? "Signed" : "Pending"}
+										</dd>
+									</div>
+									{approval && (
+										<>
+											<div>
+												<dt>Quote total</dt>
+												<dd>
+													{approval.quoteTotal} {approval.quote}
+												</dd>
+											</div>
+											<div>
+												<dt>Platform fee</dt>
+												<dd>
+													{approval.platformFee} {approval.quote}
+												</dd>
+											</div>
+										</>
+									)}
+								</dl>
+								{approval && !deal.settlement_commitment && (
+									<button
+										className="primary"
+										type="button"
+										disabled={
+											busy ||
+											Boolean(
+												deal.counterparty_commitment &&
+													deal.counterparty_commitment !== approval.commitment,
+											)
+										}
+										onClick={approveSettlement}
+									>
+										Sign settlement terms
+									</button>
+								)}
+								{!approval && !deal.settlement_commitment && (
+									<p>Decrypt the accepted terms to review and sign.</p>
+								)}
+								{approval &&
+									deal.counterparty_commitment &&
+									deal.counterparty_commitment !== approval.commitment && (
+										<p role="alert">
+											The counterparty’s signature covers different terms.
+										</p>
+									)}
+								{approvalNotice && <p role="alert">{approvalNotice}</p>}
+							</>
+						)}
+						<p>On-chain funding and settlement are unavailable.</p>
 					</article>
 				</div>
 			)}
