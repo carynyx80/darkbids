@@ -62,3 +62,29 @@ test("the relay uses the fixed mainnet endpoint and preserves raw JSON numbers",
 		vi.unstubAllGlobals();
 	}
 });
+
+test("the RPC relay allows simulation only with signature verification disabled", () => {
+	const options = {
+		encoding: "base64",
+		sigVerify: false,
+		replaceRecentBlockhash: true,
+	};
+	const simulation = {
+		...query,
+		method: "simulateTransaction",
+		params: ["AA==", options],
+	};
+	expect(readPrivacyRequest("rpc", simulation)).toEqual(simulation);
+	for (const override of [
+		{ sigVerify: true },
+		{ replaceRecentBlockhash: false },
+		{ accounts: { addresses: [tag] } },
+	]) {
+		expect(() =>
+			readPrivacyRequest("rpc", {
+				...simulation,
+				params: ["AA==", { ...options, ...override }],
+			}),
+		).toThrow();
+	}
+});

@@ -1,13 +1,13 @@
 "use client";
-import { useEffect, useState } from "react";
 import { formatAmount } from "@heliuslabs/spr";
-import { api, useSession } from "../providers";
+import { useEffect, useState } from "react";
 import {
 	depositsEnabled,
 	network,
 	openPrivacy,
 	spendingEnabled,
 } from "../privacy";
+import { api, useSession } from "../providers";
 
 type Privacy = Awaited<ReturnType<typeof openPrivacy>>;
 type Snapshot = Awaited<ReturnType<Privacy["read"]>>;
@@ -73,6 +73,25 @@ export default function Dashboard() {
 		}
 	}
 
+	async function simulateDeposit(event: React.FormEvent<HTMLFormElement>) {
+		event.preventDefault();
+		if (!client || !account || busy) return;
+		const amount = String(
+			new FormData(event.currentTarget).get("amount"),
+		).trim();
+		setSignature("");
+		setBusy(true);
+		setNotice("Simulating deposit on Solana mainnet");
+		try {
+			await client.simulateSolDeposit(account, amount);
+			setNotice("Simulation passed. No funds moved.");
+		} catch (error) {
+			setNotice(errorLabel(error));
+		} finally {
+			setBusy(false);
+		}
+	}
+
 	async function transact(
 		kind: "deposit" | "send" | "withdraw",
 		event: React.FormEvent<HTMLFormElement>,
@@ -126,7 +145,7 @@ export default function Dashboard() {
 				<h1>Private vault</h1>
 				<p>
 					{network === "mainnet"
-						? "View mainnet balances and history. Deposits, sends and withdrawals are unavailable."
+						? "View mainnet balances and history, and simulate a SOL deposit."
 						: "View private balances and history on this device."}
 				</p>
 			</div>
@@ -175,51 +194,73 @@ export default function Dashboard() {
 								<p>{busy ? "Syncing…" : "Balances unavailable."}</p>
 							)}
 						</article>
-						<form
-							className="panel stack"
-							onSubmit={(event) => transact("deposit", event)}
-						>
-							<h2>Deposit</h2>
-							<label>
-								SPL mint (optional for SOL)
-								<input name="mint" placeholder="SOL" />
-							</label>
-							<label>
-								Amount
-								<input
-									name="amount"
-									inputMode="decimal"
-									required
-									placeholder="0.00"
-								/>
-							</label>
-							<div className="inline-note">
-								<strong>What the chain sees</strong>
+						{network === "mainnet" ? (
+							<form className="panel stack" onSubmit={simulateDeposit}>
+								<h2>Simulate a SOL deposit</h2>
 								<p>
-									Sender, receiving address, timing, mint and deposited amount
-									are public.
+									Check a deposit against Solana mainnet without moving funds.
 								</p>
-							</div>
-							<label className="check">
-								<input type="checkbox" required /> I am using disposable test
-								assets.
-							</label>
-							{depositsEnabled ? (
+								<label>
+									Amount (SOL)
+									<input
+										name="amount"
+										inputMode="decimal"
+										required
+										maxLength={30}
+										placeholder="0.00"
+									/>
+								</label>
 								<button
 									className="primary"
 									type="submit"
-									disabled={!client || busy}
+									disabled={!client || !account || busy}
 								>
-									Review deposit
+									Simulate deposit
 								</button>
-							) : (
-								<p>
-									{network === "mainnet"
-										? "Mainnet deposits are unavailable."
-										: "Test deposits are disabled in this environment."}
-								</p>
-							)}
-						</form>
+							</form>
+						) : (
+							<form
+								className="panel stack"
+								onSubmit={(event) => transact("deposit", event)}
+							>
+								<h2>Deposit</h2>
+								<label>
+									SPL mint (optional for SOL)
+									<input name="mint" placeholder="SOL" />
+								</label>
+								<label>
+									Amount
+									<input
+										name="amount"
+										inputMode="decimal"
+										required
+										placeholder="0.00"
+									/>
+								</label>
+								<div className="inline-note">
+									<strong>What the chain sees</strong>
+									<p>
+										Sender, receiving address, timing, mint and deposited amount
+										are public.
+									</p>
+								</div>
+								<label className="check">
+									<input type="checkbox" required /> I am using disposable test
+									assets.
+								</label>
+								{depositsEnabled ? (
+									<button
+										className="primary"
+										type="submit"
+										disabled={!client || busy}
+									>
+										Review deposit
+									</button>
+								) : (
+									<p>Test deposits are disabled in this environment.</p>
+								)}
+							</form>
+						)}
 					</div>
 					{notice && (
 						<div className="inline-note" role="status">

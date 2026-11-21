@@ -15,6 +15,20 @@ const accountOptions = z.strictObject({
 });
 const pool = "ring1GaLCuJnkUMVkX2JeZLTTX17wKsV4fZmPVzXANW";
 const rpcMethods = {
+	getLatestBlockhash: z.tuple([z.strictObject({ commitment })]),
+	simulateTransaction: z.tuple([
+		z
+			.string()
+			.min(4)
+			.max(1644)
+			.regex(/^[A-Za-z0-9+/]+={0,2}$/),
+		z.strictObject({
+			encoding: z.literal("base64"),
+			sigVerify: z.literal(false),
+			replaceRecentBlockhash: z.literal(true),
+			commitment: commitment.optional(),
+		}),
+	]),
 	getAccountInfo: z.tuple([address, accountOptions]),
 	getProgramAccounts: z.tuple([
 		z.literal(pool),

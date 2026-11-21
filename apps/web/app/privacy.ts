@@ -203,6 +203,34 @@ export async function openPrivacy(seed: Uint8Array, token?: string) {
 			);
 			return { balances, history: getPrivateTransactions(wallet) };
 		},
+		async simulateSolDeposit(account: Account, value: string) {
+			if (network !== "mainnet") throw new Error("Select the mainnet vault");
+			const transaction = await buildDepositTransaction({
+				client,
+				feePayer: address(account.address),
+				recipient: identity,
+				amount: parseUnits(value, 9),
+			});
+			const { value: result } = await client.solanaRpc
+				.simulateTransaction(getBase64EncodedWireTransaction(transaction), {
+					encoding: "base64",
+					sigVerify: false,
+					replaceRecentBlockhash: true,
+				})
+				.send({ abortSignal: lifetime.signal });
+			if (result.err === null) return;
+			if (
+				result.err === "AccountNotFound" ||
+				result.err === "InsufficientFundsForFee" ||
+				(typeof result.err === "object" &&
+					"InsufficientFundsForRent" in result.err)
+			) {
+				throw new Error(
+					"The connected wallet needs enough mainnet SOL for the amount, network fee and any account rent.",
+				);
+			}
+			throw new Error("Solana rejected the simulated deposit. No funds moved.");
+		},
 		async deposit(
 			provider: StandardWallet,
 			account: Account,
