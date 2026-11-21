@@ -26,27 +26,48 @@ export default function Home() {
 					</div>
 				</div>
 			</section>
-			<section className="home-details" aria-label="Explore Primar">
-				<article className="feature-card">
-					<h2>OTC board</h2>
-					<p>
-						Post listings, exchange encrypted offers, and agree on terms.
-						On-chain settlement is pending.
-					</p>
-					<Link href="/otc">
-						Explore listings <span aria-hidden="true">↗</span>
-					</Link>
-				</article>
-				<article className="feature-card">
-					<h2>Private vault</h2>
-					<p>
-						Deposit, send privately, and withdraw SOL or USDC on mainnet. Your
-						wallet authorizes every transaction.
-					</p>
-					<Link href="/app">
-						Go to vault <span aria-hidden="true">↗</span>
-					</Link>
-				</article>
+			<section
+				className="how-it-works"
+				id="how-it-works"
+				aria-labelledby="how-it-works-title"
+			>
+				<h2 id="how-it-works-title">How it works</h2>
+				<div className="home-details">
+					<article className="feature-card">
+						<h3>OTC board</h3>
+						<ol>
+							<li>Browse token listings or connect your wallet to post one.</li>
+							<li>Send an encrypted offer for the seller to review.</li>
+							<li>
+								Once the seller accepts, both parties can sign the agreed terms.
+							</li>
+						</ol>
+						<p>On-chain funding and settlement are pending.</p>
+						<Link href="/otc">
+							Explore listings <span aria-hidden="true">↗</span>
+						</Link>
+					</article>
+					<article className="feature-card">
+						<h3>Private vault</h3>
+						<ol>
+							<li>
+								Connect your Solana wallet, unlock the vault, and sign in.
+							</li>
+							<li>Deposit SOL or native USDC on Solana mainnet.</li>
+							<li>
+								Send to a shielded receiving address or withdraw to a public
+								wallet.
+							</li>
+						</ol>
+						<p>
+							Your wallet approves each transaction. Helius Privacy Rings powers
+							the vault.
+						</p>
+						<Link href="/app">
+							Go to vault <span aria-hidden="true">↗</span>
+						</Link>
+					</article>
+				</div>
 			</section>
 			<section className="home-guide" aria-labelledby="home-guide-title">
 				<div>
