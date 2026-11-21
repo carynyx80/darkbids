@@ -86,13 +86,21 @@ const walletLimits = new Map<string, number>();
 const resetLimits = setInterval(() => walletLimits.clear(), 60_000);
 resetLimits.unref();
 
-function limitWallet(wallet: string) {
-	const count = (walletLimits.get(wallet) ?? 0) + 1;
-	if (count > 30) throw new Rejection(429, "Too many requests");
-	walletLimits.set(wallet, count);
+const walletRequestLimits = { desk: 30, vaultRead: 60, vaultSubmit: 8 };
+type WalletRequestScope = keyof typeof walletRequestLimits;
+
+function limitWallet(wallet: string, scope: WalletRequestScope = "desk") {
+	const key = `${scope}:${wallet}`;
+	const count = (walletLimits.get(key) ?? 0) + 1;
+	if (count > walletRequestLimits[scope])
+		throw new Rejection(429, "Too many requests");
+	walletLimits.set(key, count);
 }
 
-async function walletOf(request: FastifyRequest) {
+async function walletOf(
+	request: FastifyRequest,
+	scope: WalletRequestScope = "desk",
+) {
 	const token = request.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
 	if (!token) throw new Rejection(401, "Connect and sign in");
 	const result = await jwtVerify(token, secret, {
@@ -103,7 +111,7 @@ async function walletOf(request: FastifyRequest) {
 		throw new Rejection(401, "Sign in again");
 	});
 	const wallet = walletAddress.parse(result.payload.sub);
-	limitWallet(wallet);
+	limitWallet(wallet, scope);
 	return wallet;
 }
 
@@ -145,7 +153,10 @@ api.post("/vault/mainnet/:kind/:method?", async (request, reply) => {
 		.parse(request.params);
 	if (!mainnetVaultReads || !config.HELIUS_MAINNET_API_KEY)
 		throw new Rejection(503, "Mainnet vault reads are unavailable");
-	const wallet = await walletOf(request);
+	const wallet = await walletOf(
+		request,
+		kind === "submit" ? "vaultSubmit" : "vaultRead",
+	);
 	if (kind !== "indexer" && method)
 		throw new Rejection(400, "Invalid RPC path");
 	if (kind === "submit" && !mainnetVaultWrites)
