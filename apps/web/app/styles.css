@@ -218,16 +218,15 @@ footer {
 .home-details {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 0;
-	margin-top: 24px;
+	gap: 14px;
+	margin-top: 20px;
 }
 .home-details article {
 	min-width: 0;
 	padding: clamp(21px, 4vw, 35px);
-	border-top: 1px solid var(--line);
-}
-.home-details article + article {
-	border-left: 1px solid var(--line);
+	border: 1px solid var(--line);
+	border-radius: 20px;
+	background: linear-gradient(145deg, #173138, var(--panel) 64%);
 }
 .home-details p {
 	margin-top: 11px;
@@ -235,6 +234,18 @@ footer {
 .home-details a {
 	display: inline-block;
 	margin-top: 15px;
+}
+.home-guide {
+	display: grid;
+	grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+	gap: clamp(20px, 4vw, 54px);
+	margin-top: clamp(42px, 7vw, 84px);
+	padding-block: 28px;
+	border-top: 1px solid var(--line);
+}
+.home-guide h2 {
+	margin-bottom: 14px;
+	font-size: clamp(1.6rem, 3.2vw, 2.55rem);
 }
 .skip-link {
 	position: fixed;
@@ -439,6 +450,17 @@ details summary {
 	color: var(--accent-light);
 	cursor: pointer;
 }
+.home-questions details {
+	margin-top: 0;
+	padding: 15px 0;
+	border-bottom: 1px solid var(--line);
+}
+.home-questions p {
+	margin-top: 10px;
+}
+.home-questions summary {
+	font-weight: 620;
+}
 .board-state button {
 	margin-top: 8px;
 }
@@ -531,7 +553,25 @@ code {
 @media (prefers-reduced-motion: no-preference) {
 	.hero-content,
 	.section-head {
-		animation: enter 0.5s var(--ease) both;
+		animation: enter 0.55s var(--ease) both;
+	}
+	.hero-art {
+		animation: hero-settle 1.25s var(--ease) both;
+	}
+	.feature-card {
+		animation: enter 0.55s var(--ease) both;
+		animation-delay: 0.12s;
+	}
+	.feature-card + .feature-card {
+		animation-delay: 0.2s;
+	}
+	@keyframes hero-settle {
+		from {
+			transform: scale(1.055);
+		}
+		to {
+			transform: scale(1);
+		}
 	}
 	@keyframes enter {
 		from {
@@ -609,10 +649,8 @@ code {
 			linear-gradient(180deg, #07171df0, #07171dc4 39%, #07171d20 94%),
 			url("/brand/useparlo-river.webp") 65% center / cover no-repeat;
 	}
-	.home-details article + article {
-		border-left: 0;
-	}
 	.home-details,
+	.home-guide,
 	.grid.two {
 		grid-template-columns: 1fr;
 	}
