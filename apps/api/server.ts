@@ -104,6 +104,7 @@ for (const migration of [
 	"004.sql",
 	"005.sql",
 	"006.sql",
+	"007.sql",
 ]) {
 	await pool.query(
 		await readFile(

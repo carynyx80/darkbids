@@ -49,6 +49,9 @@ export default function Board() {
 					<p>Browse token listings and make encrypted offers.</p>
 				</div>
 				<div className="split">
+					<Link href="/otc/liquidity" className="button">
+						Liquidity pages
+					</Link>
 					<Link href="/otc/quotes" className="button">
 						Private quote room
 					</Link>

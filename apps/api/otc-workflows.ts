@@ -12,10 +12,25 @@ import type { Pool, PoolClient } from "pg";
 import { z } from "zod";
 
 const idParams = z.object({ id: z.uuid() });
+const liquiditySlug = z
+	.string()
+	.min(3)
+	.max(48)
+	.regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const liquidityInput = z.strictObject({
+	slug: liquiditySlug,
+	name: z.string().trim().min(2).max(64),
+	description: z.string().trim().max(280),
+	mint: walletAddress,
+	quote: z.enum(["SOL", "USDC"]),
+	dealers: z.array(walletAddress).min(1).max(5),
+	active: z.boolean(),
+});
 const createRfq = z.strictObject({
 	id: z.uuid(),
 	expiresAt: z.iso.datetime(),
 	sellerKey: encryptionKey,
+	liquiditySlug: liquiditySlug.optional(),
 	invites: z
 		.array(
 			z.strictObject({
@@ -87,6 +102,119 @@ export function registerOtcWorkflows(
 			reply.header("Cache-Control", "no-store");
 	});
 
+	const slugOf = (request: FastifyRequest) =>
+		z.object({ slug: liquiditySlug }).parse(request.params).slug;
+
+	api.get("/otc/liquidity", async (request) => {
+		const wallet = await walletOf(request);
+		const { rows } = await pool.query(
+			`SELECT p.*, ARRAY(SELECT d.wallet FROM otc_liquidity_dealer d WHERE d.slug=p.slug ORDER BY d.wallet) AS dealers
+			 FROM otc_liquidity_page p WHERE p.owner=$1 ORDER BY p.created_at DESC LIMIT 25`,
+			[wallet],
+		);
+		return { pages: rows };
+	});
+
+	api.post("/otc/liquidity", async (request) => {
+		const owner = await walletOf(request);
+		const input = liquidityInput.parse(request.body);
+		if (
+			new Set(input.dealers).size !== input.dealers.length ||
+			(treasury && input.dealers.includes(treasury))
+		)
+			throw new Rejection(400, "Use distinct dealer wallets");
+		await screen(owner);
+		await transaction(pool, async (client) => {
+			const saved = await client.query(
+				`INSERT INTO otc_liquidity_page (slug,owner,name,description,mint,quote,active)
+				 VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (slug) DO UPDATE
+				 SET name=excluded.name,description=excluded.description,active=excluded.active
+				 WHERE otc_liquidity_page.owner=excluded.owner AND otc_liquidity_page.mint=excluded.mint
+				 AND otc_liquidity_page.quote=excluded.quote`,
+				[
+					input.slug,
+					owner,
+					input.name,
+					input.description,
+					input.mint,
+					input.quote,
+					input.active,
+				],
+			);
+			if (!saved.rowCount)
+				throw new Rejection(
+					409,
+					"This URL is in use. A published page keeps its original mint and quote currency.",
+				);
+			await client.query(
+				"DELETE FROM otc_liquidity_dealer WHERE slug=$1 AND NOT (wallet=ANY($2::text[]))",
+				[input.slug, input.dealers],
+			);
+			await client.query(
+				`INSERT INTO otc_liquidity_dealer (slug,wallet)
+				 SELECT $1,wallet FROM unnest($2::text[]) AS wallet ON CONFLICT DO NOTHING`,
+				[input.slug, input.dealers],
+			);
+		});
+		return { slug: input.slug };
+	});
+
+	api.get("/otc/liquidity/:slug", async (request) => {
+		const {
+			rows: [page],
+		} = await pool.query(
+			`SELECT p.slug,p.name,p.description,p.mint,p.quote,
+			 (SELECT count(*)::int FROM otc_liquidity_dealer d WHERE d.slug=p.slug AND d.opted_in) AS active_dealers
+			 FROM otc_liquidity_page p WHERE p.slug=$1 AND p.active`,
+			[slugOf(request)],
+		);
+		if (!page) throw new Rejection(404, "Liquidity page unavailable");
+		return page;
+	});
+
+	api.get("/otc/liquidity/:slug/routing", async (request) => {
+		const wallet = await walletOf(request);
+		const slug = slugOf(request);
+		const { rows } = await pool.query(
+			`SELECT d.wallet,c.encryption_key FROM otc_liquidity_dealer d
+			 JOIN otc_contact c ON c.wallet=d.wallet
+			 JOIN otc_liquidity_page p ON p.slug=d.slug
+			 WHERE d.slug=$1 AND p.active AND d.opted_in AND d.wallet<>$2 ORDER BY d.wallet`,
+			[slug, wallet],
+		);
+		const {
+			rows: [dealer],
+		} = await pool.query(
+			"SELECT d.opted_in FROM otc_liquidity_dealer d JOIN otc_liquidity_page p ON p.slug=d.slug WHERE d.slug=$1 AND d.wallet=$2 AND p.active",
+			[slug, wallet],
+		);
+		return {
+			dealers: rows,
+			invited: Boolean(dealer),
+			optedIn: Boolean(dealer?.opted_in),
+		};
+	});
+
+	api.post("/otc/liquidity/:slug/dealer", async (request) => {
+		const wallet = await walletOf(request);
+		const { optedIn } = z
+			.strictObject({ optedIn: z.boolean() })
+			.parse(request.body);
+		if (optedIn) await screen(wallet);
+		const updated = await pool.query(
+			`UPDATE otc_liquidity_dealer d SET opted_in=$3 FROM otc_liquidity_page p
+			 WHERE d.slug=$1 AND d.wallet=$2 AND p.slug=d.slug AND p.active
+			 AND (NOT $3 OR EXISTS (SELECT 1 FROM otc_contact c WHERE c.wallet=d.wallet))`,
+			[slugOf(request), wallet, optedIn],
+		);
+		if (!updated.rowCount)
+			throw new Rejection(
+				409,
+				"Dealer invitation or encryption key unavailable",
+			);
+		return { optedIn };
+	});
+
 	api.post("/otc/contact", async (request) => {
 		const wallet = await walletOf(request);
 		const { key } = z.strictObject({ key: encryptionKey }).parse(request.body);
@@ -124,10 +252,11 @@ export function registerOtcWorkflows(
 		const wallet = await walletOf(request);
 		const { rows } = await pool.query(
 			`SELECT r.id, r.seller, r.treasury, r.expires_at, r.winning_deal,
-			 i.dealer, i.seller_key, i.dealer_key, i.quote_id, i.quote_expires_at, i.commitment, i.signature,
+			 p.mint AS liquidity_mint, p.quote AS liquidity_quote, i.dealer, i.seller_key, i.dealer_key, i.quote_id, i.quote_expires_at, i.commitment, i.signature,
 			 CASE WHEN r.seller=$1 THEN i.seller_copy ELSE i.request_copy END AS request_copy,
 			 CASE WHEN r.seller=$1 THEN i.seller_terms ELSE i.dealer_terms END AS quote_copy
 			 FROM otc_rfq r JOIN otc_rfq_invite i ON i.rfq_id=r.id
+			 LEFT JOIN otc_liquidity_page p ON p.slug=r.liquidity_slug
 			 WHERE r.id IN (
 			   SELECT mine.id FROM otc_rfq mine WHERE mine.seller=$1 OR EXISTS
 			     (SELECT 1 FROM otc_rfq_invite invited WHERE invited.rfq_id=mine.id AND invited.dealer=$1)
@@ -187,9 +316,36 @@ export function registerOtcWorkflows(
 					409,
 					"Trading wallets must register their encryption keys first",
 				);
+			if (input.liquiditySlug) {
+				const page = await client.query(
+					"SELECT slug FROM otc_liquidity_page WHERE slug=$1 AND active FOR SHARE",
+					[input.liquiditySlug],
+				);
+				const routed = await client.query<{ wallet: string }>(
+					`SELECT wallet FROM otc_liquidity_dealer WHERE slug=$1 AND opted_in AND wallet<>$2 FOR SHARE`,
+					[input.liquiditySlug, seller],
+				);
+				const allowed = new Set(routed.rows.map((row) => row.wallet));
+				if (
+					!page.rowCount ||
+					dealers.length !== allowed.size ||
+					dealers.some((wallet) => !allowed.has(wallet))
+				)
+					throw new Rejection(
+						409,
+						"Dealer availability changed. Refresh and resend your request.",
+					);
+			}
+
 			const inserted = await client.query(
-				"INSERT INTO otc_rfq (id,seller,expires_at,treasury) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING",
-				[input.id, seller, input.expiresAt, treasury],
+				"INSERT INTO otc_rfq (id,seller,expires_at,treasury,liquidity_slug) VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING",
+				[
+					input.id,
+					seller,
+					input.expiresAt,
+					treasury,
+					input.liquiditySlug ?? null,
+				],
 			);
 			if (!inserted.rowCount)
 				throw new Rejection(409, "This request already exists");
