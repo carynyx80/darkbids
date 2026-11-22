@@ -21,6 +21,26 @@ export default function Board() {
 		refetchInterval: 15_000,
 		retry: false,
 	});
+	const health = useQuery({
+		queryKey: ["otc-mode"],
+		queryFn: () =>
+			api<{
+				settlement: string;
+				otcBeta: {
+					trade_count: number;
+					usdc_total: string;
+					sol_total: string;
+				} | null;
+			}>("/health"),
+		refetchInterval: 30_000,
+		retry: false,
+	});
+	const budget = health.data?.otcBeta;
+	const betaFull =
+		budget &&
+		(budget.trade_count >= 10 ||
+			Number(budget.usdc_total) >= 10_000_000 ||
+			Number(budget.sol_total) >= 100_000_000);
 	return (
 		<section className="stack board">
 			<div className="section-head split">
@@ -37,6 +57,17 @@ export default function Board() {
 					</Link>
 				</div>
 			</div>
+			{budget ? (
+				<p role="status">
+					{betaFull
+						? "The beta has reached its escrow limit. Existing deals can still settle or refund."
+						: "Public mainnet beta. Sell up to 1 USDC for up to 0.01 SOL per deal. Escrow assets and amounts are public."}
+				</p>
+			) : health.data?.settlement === "pilot" ? (
+				<p role="status">
+					Mainnet funding and settlement are available to pilot wallets.
+				</p>
+			) : null}
 			<div className="panel filters">
 				<label>
 					Category

@@ -58,7 +58,7 @@ const config = z
 		ENABLE_MAINNET_VAULT_READS: z.enum(["true", "false"]).default("false"),
 		ENABLE_MAINNET_OTC_SETTLEMENT: z.enum(["true", "false"]).default("false"),
 		OTC_PILOT_WALLETS: z.string().optional(),
-		ENABLE_PUBLIC_OTC_SETTLEMENT: z.enum(["true", "false"]).default("false"),
+		ENABLE_CAPPED_PUBLIC_OTC_BETA: z.enum(["true", "false"]).default("false"),
 		OTC_SETTLEMENT_SIGNER_SEED: z.base64().optional(),
 		ENABLE_MAINNET: z.enum(["true", "false"]).default("false"),
 	})
@@ -74,7 +74,7 @@ const pilot = config.OTC_PILOT_WALLETS
 			config.OTC_PILOT_WALLETS.split(",").map((item) => item.trim()),
 		)
 	: undefined;
-const publicSettlement = config.ENABLE_PUBLIC_OTC_SETTLEMENT === "true";
+const publicSettlement = config.ENABLE_CAPPED_PUBLIC_OTC_BETA === "true";
 if (
 	config.ENABLE_MAINNET_OTC_SETTLEMENT === "true" &&
 	((!publicSettlement && !pilot) ||
@@ -103,6 +103,7 @@ for (const migration of [
 	"003.sql",
 	"004.sql",
 	"005.sql",
+	"006.sql",
 ]) {
 	await pool.query(
 		await readFile(
@@ -268,13 +269,16 @@ api.post("/vault/mainnet/:kind/:method?", async (request, reply) => {
 });
 
 api.get("/health", async () => {
-	await pool.query("SELECT 1");
+	const { rows } = await pool.query(
+		"SELECT trade_count,usdc_total,sol_total FROM otc_beta_budget WHERE singleton",
+	);
 	return {
+		otcBeta: publicSettlement && settlementFunding ? rows[0] : null,
 		network: config.NEXT_PUBLIC_NETWORK,
 		database: "connected",
 		settlement: settlementFunding
 			? publicSettlement
-				? "available"
+				? "public-beta"
 				: "pilot"
 			: "unavailable",
 		mainnetVaultReads,

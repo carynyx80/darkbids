@@ -49,6 +49,7 @@ import type { Pool } from "pg";
 import nacl from "tweetnacl";
 import { z } from "zod";
 import {
+	isBetaTrade,
 	isPilotDeal,
 	isPilotTrade,
 	type pilotWallets,
@@ -342,7 +343,7 @@ export async function createDvpService(
 				"Asset quantity does not match the mint precision",
 			);
 		}
-		enforcePilotTrade({
+		enforceTradeLimit({
 			...deal,
 			assetMint,
 			quoteMint,
@@ -363,17 +364,46 @@ export async function createDvpService(
 			nonce: randomBytes(8).readBigUInt64LE().toString(),
 			reference: id,
 		};
-		await pool.query(
-			`INSERT INTO settlement_dvp (offer_id,terms,asset_decimals,quote_decimals,treasury)
-			VALUES ($1,$2,$3,$4,$5) ON CONFLICT (offer_id) DO NOTHING`,
-			[
-				id,
-				JSON.stringify(terms),
-				mint.data[44],
-				approved.quoteDecimals,
-				treasury,
-			],
-		);
+		const client = await pool.connect();
+		try {
+			await client.query("BEGIN");
+			const insert = await client.query(
+				`INSERT INTO settlement_dvp (offer_id,terms,asset_decimals,quote_decimals,treasury)
+				VALUES ($1,$2,$3,$4,$5) ON CONFLICT (offer_id) DO NOTHING`,
+				[
+					id,
+					JSON.stringify(terms),
+					mint.data[44],
+					approved.quoteDecimals,
+					treasury,
+				],
+			);
+			if (publicSettlement && insert.rowCount) {
+				const budget = await client.query(
+					`UPDATE otc_beta_budget
+					SET trade_count=trade_count+1,usdc_total=usdc_total+$1::bigint,sol_total=sol_total+$2::bigint
+					WHERE singleton AND trade_count<10 AND usdc_total+$1::bigint<=10000000
+					AND sol_total+$2::bigint<=100000000`,
+					[terms.assetAmount, terms.quoteAmount],
+				);
+				if (!budget.rowCount)
+					throw new DvpError(
+						409,
+						"The public beta has reached its escrow limit",
+					);
+				await client.query(
+					"INSERT INTO otc_beta_admission (offer_id) VALUES ($1)",
+					[id],
+				);
+			}
+			await client.query("COMMIT");
+		} catch (error) {
+			await client.query("ROLLBACK");
+			throw error;
+		} finally {
+			client.release();
+		}
+
 		const stored = await storedTrade(id);
 		if (!stored) throw new DvpError(503, "Escrow terms could not be saved");
 		return stored;
@@ -419,11 +449,28 @@ export async function createDvpService(
 		};
 	}
 
-	function enforcePilotTrade(trade: Parameters<typeof isPilotTrade>[1]) {
-		if (!publicSettlement && !isPilotTrade(pilot, trade))
+	function enforceTradeLimit(trade: Parameters<typeof isPilotTrade>[1]) {
+		const allowed = publicSettlement
+			? isBetaTrade(trade)
+			: isPilotTrade(pilot, trade);
+		if (!allowed)
 			throw new DvpError(
 				403,
-				"Pilot trades are limited to 1 USDC against 0.01 SOL",
+				"Mainnet beta trades are limited to 1 USDC for up to 0.01 SOL",
+			);
+	}
+
+	async function enforceAdmission(id: string, terms: DvpTerms) {
+		enforceTradeLimit(terms);
+		if (!publicSettlement) return;
+		const { rowCount } = await pool.query(
+			"SELECT 1 FROM otc_beta_admission WHERE offer_id=$1",
+			[id],
+		);
+		if (!rowCount)
+			throw new DvpError(
+				409,
+				"This escrow was created outside the public beta",
 			);
 	}
 
@@ -519,7 +566,7 @@ export async function createDvpService(
 					: null);
 			if (!stored) throw new DvpError(409, "Create the on-chain escrow first");
 			const terms = restore(stored);
-			if (action !== "refund") enforcePilotTrade(terms);
+			if (action !== "refund") await enforceAdmission(id, terms);
 			const current = await escrowState(
 				terms,
 				action === "refund" ? wallet : undefined,
@@ -704,7 +751,7 @@ export async function createDvpService(
 				enforceActive(deal);
 				const stored = await storedTrade(id);
 				if (!stored) throw new DvpError(409, "Escrow is unavailable");
-				enforcePilotTrade(restore(stored));
+				await enforceAdmission(id, restore(stored));
 				await Promise.all([screen(deal.seller), screen(deal.buyer)]);
 			}
 			const decode = getTransactionDecoder();

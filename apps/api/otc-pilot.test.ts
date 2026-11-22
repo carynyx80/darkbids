@@ -1,6 +1,11 @@
 import { SOL_MINT } from "@veil/core/config";
 import { expect, it } from "vitest";
-import { isPilotTrade, pilotWallets, USDC_MINT } from "./otc-pilot";
+import {
+	isBetaTrade,
+	isPilotTrade,
+	pilotWallets,
+	USDC_MINT,
+} from "./otc-pilot";
 
 it("restricts the pilot to a specific wallet pair, direction, pair of mints and amount caps", () => {
 	const seller = "3QBZ8hJbpFLiwredUnDJe7wzKA2HGf8onSoa3Wu2A5Dw";
@@ -15,6 +20,9 @@ it("restricts the pilot to a specific wallet pair, direction, pair of mints and 
 		quoteAmount: 10_000_000n,
 	};
 	expect(isPilotTrade(wallets, trade)).toBe(true);
+	expect(isBetaTrade(trade)).toBe(true);
+	expect(isBetaTrade({ ...trade, assetAmount: 1_000_001n })).toBe(false);
+	expect(isBetaTrade({ ...trade, quoteAmount: 10_000_001n })).toBe(false);
 	expect(isPilotTrade(undefined, trade)).toBe(false);
 	expect(
 		isPilotTrade(wallets, { ...trade, seller: buyer, buyer: seller }),

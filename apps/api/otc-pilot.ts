@@ -25,8 +25,11 @@ export function isPilotDeal(wallets: Wallets | undefined, parties: Parties) {
 }
 
 export function isPilotTrade(wallets: Wallets | undefined, trade: Trade) {
+	return isPilotDeal(wallets, trade) && isBetaTrade(trade);
+}
+
+export function isBetaTrade(trade: Omit<Trade, keyof Parties>) {
 	return (
-		isPilotDeal(wallets, trade) &&
 		trade.assetMint === USDC_MINT &&
 		trade.quoteMint === SOL_MINT &&
 		trade.assetAmount > 0n &&
