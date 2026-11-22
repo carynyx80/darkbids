@@ -32,9 +32,21 @@ interface Deal {
 	buyer_encryption_key: string | null;
 	counterparty_encryption_key: string | null;
 	settlement_treasury: string | null;
+	settlement_enabled: boolean;
+	settlement_funding_enabled: boolean;
 	settlement_commitment: string | null;
 	counterparty_commitment: string | null;
 }
+
+type Escrow = {
+	state: "not-created" | "open" | "closed";
+	trade?: string;
+	sellerFunded?: boolean;
+	buyerFunded?: boolean;
+	canRefund?: boolean;
+};
+
+type EscrowAction = "create" | "fund" | "settle" | "refund";
 
 export default function DealRoom() {
 	const { id } = useParams<{ id: string }>();
@@ -50,6 +62,7 @@ export default function DealRoom() {
 		} & Awaited<ReturnType<typeof prepareSettlementApproval>>
 	>();
 	const [approvalNotice, setApprovalNotice] = useState("");
+	const [transactionSignature, setTransactionSignature] = useState("");
 	const [notice, setNotice] = useState("");
 	const [busy, setBusy] = useState(false);
 	const query = useQuery({
@@ -60,6 +73,15 @@ export default function DealRoom() {
 		refetchInterval: 15_000,
 	});
 	const deal = query.data;
+	const escrowQuery = useQuery({
+		queryKey: ["escrow", id, account?.address],
+		queryFn: () => api<Escrow>(`/deals/${id}/escrow`, undefined, token),
+		enabled: Boolean(token && deal?.settlement_enabled),
+		retry: false,
+		refetchInterval: 12_000,
+	});
+	const escrow = escrowQuery.data;
+
 	const approval =
 		seed &&
 		deal &&
@@ -212,6 +234,80 @@ export default function DealRoom() {
 		}
 	}
 
+	async function escrowAction(action: EscrowAction) {
+		if (!deal || !token || !wallet || !account || busy) return;
+		const signer = wallet.features["solana:signTransaction"];
+		if (
+			!signer?.supportedTransactionVersions.includes(1) ||
+			!account.chains.includes("solana:mainnet")
+		) {
+			setApprovalNotice(
+				"Connect a mainnet wallet that supports Solana v1 transaction signing.",
+			);
+			return;
+		}
+		setBusy(true);
+		setTransactionSignature("");
+		setApprovalNotice("Preparing Solana transaction");
+		try {
+			const path = `/deals/${deal.id}/escrow`;
+			const prepared = await api<{
+				id: string;
+				wire: string;
+				signature: string | null;
+			}>(
+				`${path}/prepare/${action}`,
+				{
+					method: "POST",
+					body: JSON.stringify(
+						action === "create" && approval
+							? { opening: approval.opening }
+							: {},
+					),
+				},
+				token,
+			);
+			if (prepared.signature) {
+				setTransactionSignature(prepared.signature);
+				setApprovalNotice(
+					"This transaction was already submitted. Check its status before retrying.",
+				);
+				await escrowQuery.refetch();
+				return;
+			}
+			setApprovalNotice("Review and approve the transaction in your wallet");
+			const [signed] = await signer.signTransaction({
+				account,
+				chain: "solana:mainnet",
+				transaction: decode(prepared.wire),
+			});
+			if (!signed)
+				throw new Error("Wallet did not return a signed transaction");
+			const result = await api<{ signature: string }>(
+				`${path}/submit`,
+				{
+					method: "POST",
+					body: JSON.stringify({
+						id: prepared.id,
+						wire: encode(signed.signedTransaction),
+					}),
+				},
+				token,
+			);
+			setTransactionSignature(result.signature);
+			setApprovalNotice(
+				"Transaction submitted. Solana confirmation can take a moment.",
+			);
+			await escrowQuery.refetch();
+		} catch (error) {
+			setApprovalNotice(
+				error instanceof Error ? error.message : "The escrow action failed",
+			);
+		} finally {
+			setBusy(false);
+		}
+	}
+
 	return (
 		<section className="stack">
 			<div className="section-head">
@@ -328,10 +424,98 @@ export default function DealRoom() {
 											The counterparty’s signature covers different terms.
 										</p>
 									)}
-								{approvalNotice && <p role="alert">{approvalNotice}</p>}
 							</>
 						)}
-						<p>On-chain funding and settlement are unavailable.</p>
+						{deal.settlement_enabled ? (
+							<>
+								{escrowQuery.isError && (
+									<p role="alert">{escrowQuery.error.message}</p>
+								)}
+								{escrow?.trade && (
+									<a href={`https://solscan.io/account/${escrow.trade}`}>
+										View escrow on Solscan
+									</a>
+								)}
+								{escrow?.state === "open" && (
+									<dl>
+										<div>
+											<dt>Seller’s leg</dt>
+											<dd>{escrow.sellerFunded ? "Funded" : "Waiting"}</dd>
+										</div>
+										<div>
+											<dt>Buyer’s leg</dt>
+											<dd>{escrow.buyerFunded ? "Funded" : "Waiting"}</dd>
+										</div>
+									</dl>
+								)}
+								{escrow?.state === "closed" && <p>Escrow closed on Solana.</p>}
+								<div className="actions">
+									{deal.settlement_funding_enabled &&
+										deal.state === "ACCEPTED" &&
+										escrow?.state === "not-created" &&
+										approval &&
+										deal.settlement_commitment === approval.commitment &&
+										deal.counterparty_commitment === approval.commitment && (
+											<button
+												type="button"
+												disabled={busy}
+												onClick={() => escrowAction("create")}
+											>
+												Publish terms and create escrow
+											</button>
+										)}
+									{deal.settlement_funding_enabled &&
+										deal.state === "ACCEPTED" &&
+										escrow?.state === "open" &&
+										!(account?.address === deal.seller
+											? escrow.sellerFunded
+											: escrow.buyerFunded) && (
+											<button
+												type="button"
+												disabled={busy}
+												onClick={() => escrowAction("fund")}
+											>
+												Fund my side
+											</button>
+										)}
+									{deal.settlement_funding_enabled &&
+										deal.state === "ACCEPTED" &&
+										escrow?.state === "open" &&
+										escrow.sellerFunded &&
+										escrow.buyerFunded &&
+										account?.address === deal.seller && (
+											<button
+												type="button"
+												className="primary"
+												disabled={busy}
+												onClick={() => escrowAction("settle")}
+											>
+												Settle trade and pay fee
+											</button>
+										)}
+									{escrow?.canRefund && (
+										<button
+											type="button"
+											disabled={busy}
+											onClick={() => escrowAction("refund")}
+										>
+											Refund my side
+										</button>
+									)}
+								</div>
+								{escrow?.state === "open" && (
+									<p>SOL is held as wrapped SOL for this trade.</p>
+								)}
+							</>
+						) : (
+							<p>On-chain funding and settlement are unavailable.</p>
+						)}
+						{approvalNotice && <p role="status">{approvalNotice}</p>}
+						{transactionSignature && (
+							<a href={`https://solscan.io/tx/${transactionSignature}`}>
+								Check transaction on Solscan
+							</a>
+						)}
 					</article>
 				</div>
 			)}

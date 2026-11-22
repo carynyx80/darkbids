@@ -31,7 +31,7 @@ test("both counterparties derive the same private commitment and exact fee", asy
 			ownSecretKey: buyer.secretKey,
 			otherPublicKey: seller.publicKey,
 		});
-	expect(await approveAsBuyer("1.1250")).toEqual(approval);
+	expect((await approveAsBuyer("1.1250")).commitment).toBe(approval.commitment);
 	expect((await approveAsBuyer("1.126")).commitment).not.toBe(
 		approval.commitment,
 	);

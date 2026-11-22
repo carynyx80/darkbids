@@ -50,7 +50,11 @@ export function deriveDvpTrade(terms: DvpTerms) {
 	});
 }
 
-function deriveEscrow(trade: Address, mint: Address, tokenProgram: Address) {
+export function deriveEscrow(
+	trade: Address,
+	mint: Address,
+	tokenProgram: Address,
+) {
 	const encode = getAddressEncoder().encode;
 	return getProgramDerivedAddress({
 		programAddress: ASSOCIATED_TOKEN_PROGRAM,
@@ -112,7 +116,7 @@ export async function verifyDvpTrade(
 }
 
 const SYSTEM_PROGRAM = address("11111111111111111111111111111111");
-const SPL_TOKEN_PROGRAM = address(
+export const SPL_TOKEN_PROGRAM = address(
 	"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
 );
 const MEMO_PROGRAM = address("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr");
@@ -246,18 +250,21 @@ export async function fundDvpInstruction(
 	wallet: Address,
 	decimals: number,
 	now: bigint,
+	credited = 0n,
 ) {
 	requireLegacySpl(terms);
 	if (now >= terms.expiry) throw new Error("Deal has expired");
 	const { assetEscrow, quoteEscrow } = await verifyDvpTrade(account, terms);
 	const { mint, amount } = partyLeg(terms, wallet);
+	if (credited < 0n || credited >= amount)
+		throw new Error("Trade leg is already funded");
 	const [source] = await deriveEscrow(wallet, mint, SPL_TOKEN_PROGRAM);
 	return transferChecked(
 		source,
 		mint,
 		wallet === terms.seller ? assetEscrow : quoteEscrow,
 		wallet,
-		amount,
+		amount - credited,
 		decimals,
 	);
 }

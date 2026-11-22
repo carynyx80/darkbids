@@ -4,6 +4,7 @@ import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
+import { address } from "@solana/kit";
 import { APP_NAME } from "@veil/core/config";
 import {
 	authMessage,
@@ -22,6 +23,13 @@ import { jwtVerify, SignJWT } from "jose";
 import pg from "pg";
 import nacl from "tweetnacl";
 import { z } from "zod";
+import {
+	createDvpService,
+	DvpError,
+	dvpAction,
+	dvpPrepare,
+	dvpSubmit,
+} from "./dvp-service";
 import {
 	readBoundedPrivacyResponse,
 	readPrivacyRequest,
@@ -46,6 +54,8 @@ const config = z
 		HELIUS_MAINNET_API_KEY: z.string().trim().min(1).optional(),
 		ENABLE_MAINNET_VAULT_WRITES: z.enum(["true", "false"]).default("false"),
 		ENABLE_MAINNET_VAULT_READS: z.enum(["true", "false"]).default("false"),
+		ENABLE_MAINNET_OTC_SETTLEMENT: z.enum(["true", "false"]).default("false"),
+		OTC_SETTLEMENT_SIGNER_SEED: z.base64().optional(),
 		ENABLE_MAINNET: z.enum(["true", "false"]).default("false"),
 	})
 	.parse(process.env);
@@ -64,7 +74,7 @@ const pool = new pg.Pool({
 	connectionString: config.DATABASE_URL,
 	connectionTimeoutMillis: 3000,
 });
-for (const migration of ["001.sql", "002.sql", "003.sql"]) {
+for (const migration of ["001.sql", "002.sql", "003.sql", "004.sql"]) {
 	await pool.query(
 		await readFile(
 			new URL(`./migrations/${migration}`, import.meta.url),
@@ -143,7 +153,7 @@ async function screen(wallet: string) {
 }
 
 api.setErrorHandler((error, _request, reply) => {
-	if (error instanceof Rejection)
+	if (error instanceof Rejection || error instanceof DvpError)
 		return reply.code(error.status).send({ message: error.message });
 	if (error instanceof z.ZodError)
 		return reply.code(400).send({ message: "Invalid request" });
@@ -155,6 +165,24 @@ api.setErrorHandler((error, _request, reply) => {
 		return reply.code(status).send({ message: "Request rejected" });
 	return reply.code(503).send({ message: "Service temporarily unavailable" });
 });
+
+const settlement =
+	config.HELIUS_MAINNET_API_KEY &&
+	config.OTC_SETTLEMENT_SIGNER_SEED &&
+	config.TREASURY_WALLET_ADDRESS &&
+	config.TREASURY_WALLET_NETWORK === "mainnet"
+		? await createDvpService(
+				pool,
+				config.HELIUS_MAINNET_API_KEY,
+				config.OTC_SETTLEMENT_SIGNER_SEED,
+				address(config.TREASURY_WALLET_ADDRESS),
+				screen,
+			)
+		: undefined;
+
+const settlementFunding = Boolean(
+	settlement && config.ENABLE_MAINNET_OTC_SETTLEMENT === "true",
+);
 
 const mainnetVaultReads =
 	config.ENABLE_MAINNET_VAULT_READS === "true" &&
@@ -214,7 +242,7 @@ api.get("/health", async () => {
 	return {
 		network: config.NEXT_PUBLIC_NETWORK,
 		database: "connected",
-		settlement: "unavailable",
+		settlement: settlementFunding ? "available" : "unavailable",
 		mainnetVaultReads,
 		mainnetVaultWrites,
 		treasuryWallet: config.TREASURY_WALLET_ADDRESS || null,
@@ -422,12 +450,17 @@ api.get("/deals/:id", async (request) => {
        (SELECT s.commitment FROM settlement_approval s WHERE s.offer_id=o.id AND s.wallet=l.seller)
      END AS counterparty_commitment,
      (SELECT s.commitment FROM settlement_approval s WHERE s.offer_id=o.id AND s.wallet=$2) AS settlement_commitment
+     , EXISTS (SELECT 1 FROM settlement_dvp d WHERE d.offer_id=o.id) AS escrow_configured
      FROM offer o JOIN listing l ON l.id=o.listing_id WHERE o.id=$1 AND ($2=l.seller OR $2=o.buyer)`,
 		[idOf(request), wallet],
 	);
 	if (!result.rowCount) throw new Rejection(404, "Deal unavailable");
 	return {
 		...result.rows[0],
+		settlement_enabled: Boolean(
+			settlement && (settlementFunding || result.rows[0].escrow_configured),
+		),
+		settlement_funding_enabled: settlementFunding,
 		settlement_treasury:
 			config.TREASURY_WALLET_NETWORK === "mainnet"
 				? config.TREASURY_WALLET_ADDRESS || null
@@ -542,6 +575,36 @@ api.post("/deals/:id/settlement-approval", async (request) => {
 	} finally {
 		client.release();
 	}
+});
+
+api.get("/deals/:id/escrow", async (request) => {
+	const wallet = await walletOf(request);
+	if (!settlement) throw new Rejection(503, "OTC escrow is unavailable");
+	return settlement.status(idOf(request), wallet);
+});
+
+api.post("/deals/:id/escrow/prepare/:action", async (request) => {
+	const wallet = address(await walletOf(request));
+	const { action } = z.object({ action: dvpAction }).parse(request.params);
+	if (!settlement || (!settlementFunding && action !== "refund"))
+		throw new Rejection(503, "OTC escrow is unavailable");
+	return settlement.prepare(
+		idOf(request),
+		wallet,
+		action,
+		dvpPrepare.parse(request.body),
+	);
+});
+
+api.post("/deals/:id/escrow/submit", async (request) => {
+	const wallet = address(await walletOf(request));
+	if (!settlement) throw new Rejection(503, "OTC escrow is unavailable");
+	return settlement.submit(
+		idOf(request),
+		wallet,
+		dvpSubmit.parse(request.body),
+		settlementFunding,
+	);
 });
 
 for (const action of ["fund", "seal"]) {
