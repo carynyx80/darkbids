@@ -19,9 +19,11 @@ type ManagedPage = {
 export default function LiquidityPages() {
 	const { account, token } = useSession();
 	return (
-		<section className="stack">
-			<Link href="/otc">← OTC desk</Link>
-			<div className="section-head">
+		<section className="stack liquidity-layout">
+			<Link className="desk-back" href="/otc">
+				← OTC desk
+			</Link>
+			<div className="desk-hero">
 				<h1>Liquidity pages</h1>
 				<p>
 					Create a shareable page where token holders can request private quotes
@@ -35,7 +37,28 @@ export default function LiquidityPages() {
 					token={token}
 				/>
 			) : (
-				<p>Connect your wallet and sign in to create or manage a page.</p>
+				<div className="grid two">
+					<article className="panel stack quote-intro">
+						<h2>Set up your page</h2>
+						<p>
+							Choose a token mint, quote currency, and up to five dealer
+							wallets. Share your link once dealers have opted in.
+						</p>
+						<p>
+							Open <strong>Menu → Connect Solana Wallet</strong> and sign in to
+							get started.
+						</p>
+					</article>
+					<article className="panel stack quote-intro">
+						<h2>See the holder experience</h2>
+						<p>
+							Preview what your community will see before requesting a quote.
+						</p>
+						<Link className="button" href="/otc/liquidity/primar-demo-09612b1e">
+							View demo page <span aria-hidden="true">↗</span>
+						</Link>
+					</article>
+				</div>
 			)}
 		</section>
 	);
@@ -91,7 +114,7 @@ function ManagePages({ wallet, token }: { wallet: string; token: string }) {
 				<section className="panel stack">
 					<h2>Your pages</h2>
 					{query.data.pages.map((page) => (
-						<div key={page.slug} className="split">
+						<div key={page.slug} className="split managed-page-row">
 							{page.active ? (
 								<Link href={`/otc/liquidity/${page.slug}`}>{page.name}</Link>
 							) : (
@@ -113,28 +136,30 @@ function ManagePages({ wallet, token }: { wallet: string; token: string }) {
 				onSubmit={save}
 			>
 				<h2>{selected ? "Edit liquidity page" : "Create a liquidity page"}</h2>
-				<label>
-					Project name
-					<input
-						name="name"
-						required
-						minLength={2}
-						maxLength={64}
-						defaultValue={selected?.name}
-					/>
-				</label>
-				<label>
-					Page URL slug
-					<input
-						name="slug"
-						required
-						pattern="[a-z0-9]+(-[a-z0-9]+)*"
-						minLength={3}
-						maxLength={48}
-						defaultValue={selected?.slug}
-						readOnly={Boolean(selected)}
-					/>
-				</label>
+				<div className="form-pair">
+					<label>
+						Project name
+						<input
+							name="name"
+							required
+							minLength={2}
+							maxLength={64}
+							defaultValue={selected?.name}
+						/>
+					</label>
+					<label>
+						Page URL slug
+						<input
+							name="slug"
+							required
+							pattern="[a-z0-9]+(-[a-z0-9]+)*"
+							minLength={3}
+							maxLength={48}
+							defaultValue={selected?.slug}
+							readOnly={Boolean(selected)}
+						/>
+					</label>
+				</div>
 				<label>
 					Description
 					<textarea
@@ -143,31 +168,33 @@ function ManagePages({ wallet, token }: { wallet: string; token: string }) {
 						defaultValue={selected?.description}
 					/>
 				</label>
-				<label>
-					Token mint
-					<input
-						name="mint"
-						required
-						defaultValue={selected?.mint}
-						readOnly={Boolean(selected)}
-					/>
-				</label>
-				<label htmlFor="liquidity-quote">
-					Quote currency
-					{selected ? (
+				<div className="form-pair mint-fields">
+					<label>
+						Token mint
 						<input
-							id="liquidity-quote"
-							name="quote"
-							readOnly
-							value={selected.quote}
+							name="mint"
+							required
+							defaultValue={selected?.mint}
+							readOnly={Boolean(selected)}
 						/>
-					) : (
-						<select id="liquidity-quote" name="quote">
-							<option>SOL</option>
-							<option>USDC</option>
-						</select>
-					)}
-				</label>
+					</label>
+					<label htmlFor="liquidity-quote">
+						Quote currency
+						{selected ? (
+							<input
+								id="liquidity-quote"
+								name="quote"
+								readOnly
+								value={selected.quote}
+							/>
+						) : (
+							<select id="liquidity-quote" name="quote">
+								<option>SOL</option>
+								<option>USDC</option>
+							</select>
+						)}
+					</label>
+				</div>
 				<label>
 					Invited dealer wallets (up to five)
 					<textarea
@@ -176,7 +203,7 @@ function ManagePages({ wallet, token }: { wallet: string; token: string }) {
 						defaultValue={selected?.dealers.join("\n")}
 					/>
 				</label>
-				<label>
+				<label className="publish-control">
 					<input
 						type="checkbox"
 						name="active"
@@ -184,8 +211,8 @@ function ManagePages({ wallet, token }: { wallet: string; token: string }) {
 					/>
 					Publish page
 				</label>
-				<button type="submit" disabled={busy}>
-					Save page
+				<button className="primary" type="submit" disabled={busy}>
+					{busy ? "Saving…" : "Save page"}
 				</button>
 			</form>
 			{notice && <p role="status">{notice}</p>}

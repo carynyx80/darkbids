@@ -71,7 +71,7 @@ export default function NewListing() {
 	}
 	return (
 		<section className="stack">
-			<div className="section-head">
+			<div className="desk-hero">
 				<h1>Create listing</h1>
 				<p>
 					The board shows the size bucket. Your exact terms are encrypted in the

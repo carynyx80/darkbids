@@ -777,3 +777,152 @@ code {
 	flex-wrap: wrap;
 	gap: 8px;
 }
+
+.desk-back {
+	width: fit-content;
+	font-size: 0.875rem;
+	text-decoration: none;
+}
+
+.desk-back:hover {
+	text-decoration: underline;
+}
+
+.desk-hero {
+	display: grid;
+	gap: 12px;
+	min-width: 0;
+	padding: clamp(22px, 4vw, 42px);
+	border: 1px solid var(--line);
+	border-radius: 20px;
+	background:
+		radial-gradient(ellipse at 95% 0%, var(--raised), transparent 60%),
+		var(--panel);
+}
+
+.desk-hero.split {
+	display: flex;
+}
+
+.desk-hero.split h1 + p {
+	margin-top: 10px;
+}
+
+.desk-hero h1 {
+	font-size: clamp(2rem, 5vw, 3.75rem);
+	overflow-wrap: anywhere;
+}
+
+.desk-hero a,
+.desk-hero button,
+.quote-intro a {
+	justify-self: start;
+}
+
+.desk-notice {
+	max-width: none;
+	padding: 11px 14px;
+	border-inline-start: 2px solid var(--accent-light);
+	border-radius: 0 8px 8px 0;
+	background: var(--raised);
+	font-size: 0.9rem;
+}
+
+.liquidity-layout {
+	gap: clamp(14px, 2.5vw, 22px);
+}
+
+.liquidity-hero {
+	grid-template-columns: minmax(0, 1fr) minmax(185px, 0.55fr);
+	align-items: end;
+	gap: 20px;
+}
+
+.liquidity-metrics {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+}
+
+.liquidity-metrics > div {
+	padding: 12px;
+	border: 1px solid var(--line);
+	border-radius: 12px;
+	background: var(--base);
+}
+
+.liquidity-metrics dt,
+.mint-panel dt {
+	font-size: 0.77rem;
+	color: var(--muted);
+}
+
+.liquidity-metrics dd,
+.mint-panel dd {
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+.liquidity-metrics dd {
+	font-size: 1.4rem;
+	line-height: 1.25;
+	font-weight: 650;
+}
+
+.mint-panel {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding-block: 14px;
+}
+
+.mint-panel dl {
+	min-width: 0;
+}
+
+.mint-panel button {
+	flex-shrink: 0;
+}
+
+.quote-intro {
+	gap: 10px;
+}
+
+.quote-intro > p {
+	margin-top: 0;
+}
+
+.form-pair {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px;
+}
+
+.form-pair.mint-fields {
+	grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+.managed-page-row {
+	padding-block: 8px;
+	border-bottom: 1px solid var(--line);
+}
+
+.publish-control {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.publish-control input {
+	width: auto;
+}
+
+@media (max-width: 650px) {
+	.liquidity-hero,
+	.form-pair,
+	.form-pair.mint-fields {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}

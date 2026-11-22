@@ -3,7 +3,7 @@ import Link from "next/link";
 export default function Guide() {
 	return (
 		<section className="stack">
-			<div className="section-head">
+			<div className="desk-hero">
 				<h1>Using the desk</h1>
 			</div>
 			<article className="panel stack">

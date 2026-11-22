@@ -434,6 +434,7 @@ export function QuoteWorkspace({
 					/>
 				</label>
 				<button
+					className="primary"
 					type="submit"
 					disabled={busy || Boolean(liquidity && !routing.data?.dealers.length)}
 				>
@@ -441,19 +442,21 @@ export function QuoteWorkspace({
 				</button>
 			</form>
 			<section className="panel stack">
-				<h2>Requests and invitations</h2>
-				<button
-					type="button"
-					disabled={busy || query.isFetching}
-					onClick={() =>
-						run(async () => {
-							setReviews({});
-							await query.refetch({ throwOnError: true });
-						})
-					}
-				>
-					Refresh requests
-				</button>
+				<div className="split">
+					<h2>Requests and invitations</h2>
+					<button
+						type="button"
+						disabled={busy || query.isFetching}
+						onClick={() =>
+							run(async () => {
+								setReviews({});
+								await query.refetch({ throwOnError: true });
+							})
+						}
+					>
+						Refresh requests
+					</button>
+				</div>
 				{query.error && <p role="alert">{query.error.message}</p>}
 				{!query.isPending && !groups.size && (
 					<p>No requests or invitations yet.</p>

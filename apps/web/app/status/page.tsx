@@ -12,7 +12,7 @@ export default function Status() {
 	});
 	return (
 		<section className="stack">
-			<div className="section-head">
+			<div className="desk-hero">
 				<h1>Service status</h1>
 			</div>
 			<article className="panel">

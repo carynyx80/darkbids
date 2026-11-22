@@ -9,6 +9,8 @@ const links = [
 	["Home", "/"],
 	["How it works", "/#how-it-works"],
 	["OTC board", "/otc"],
+	["Liquidity pages", "/otc/liquidity"],
+	["Private quote room", "/otc/quotes"],
 	["Vault", "/app"],
 	["Create listing", "/otc/new"],
 	["Guide", "/docs"],
@@ -63,8 +65,13 @@ export function MainNav() {
 						href={href}
 						aria-current={
 							path === href ||
+							(href === "/otc/liquidity" &&
+								path.startsWith("/otc/liquidity/")) ||
 							(href === "/otc" &&
-								((path.startsWith("/otc/") && path !== "/otc/new") ||
+								((path.startsWith("/otc/") &&
+									path !== "/otc/new" &&
+									path !== "/otc/quotes" &&
+									!path.startsWith("/otc/liquidity")) ||
 									path.startsWith("/deals/")))
 								? "page"
 								: undefined

@@ -35,8 +35,12 @@ export default function VerifyReceipt() {
 	}
 	return (
 		<section className="stack">
-			<Link href="/otc">← OTC desk</Link>
-			<h1>Verify a trade receipt</h1>
+			<Link className="desk-back" href="/otc">
+				← OTC desk
+			</Link>
+			<div className="desk-hero">
+				<h1>Verify a trade receipt</h1>
+			</div>
 			<div className="panel stack">
 				<p>Your browser verifies the wallet signature locally.</p>
 				<label>

@@ -312,7 +312,7 @@ export default function DealRoom() {
 
 	return (
 		<section className="stack">
-			<div className="section-head">
+			<div className="desk-hero">
 				<h1>Deal room</h1>
 				<p>Review the offer and track its status.</p>
 			</div>

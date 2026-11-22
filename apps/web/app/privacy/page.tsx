@@ -1,7 +1,7 @@
 export default function PrivacyPolicy() {
 	return (
 		<section className="stack">
-			<div className="section-head">
+			<div className="desk-hero">
 				<h1>Privacy policy</h1>
 				<p>Draft, needs lawyer review.</p>
 			</div>

@@ -135,7 +135,7 @@ export default function Detail() {
 	const item = listing.data;
 	return (
 		<section className="stack">
-			<div className="section-head">
+			<div className="desk-hero">
 				<Link href="/otc">OTC board</Link>
 				<h1>{item.category}</h1>
 			</div>

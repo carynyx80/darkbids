@@ -167,7 +167,7 @@ export default function Dashboard() {
 
 	return (
 		<section className="stack vault-workspace">
-			<div className="section-head">
+			<div className="desk-hero">
 				<div className="eyebrow">{network.toUpperCase()} / DEFAULT RING</div>
 				<h1>Private vault</h1>
 				<p>

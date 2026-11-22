@@ -43,7 +43,7 @@ export default function Board() {
 			Number(budget.sol_total) >= 100_000_000);
 	return (
 		<section className="stack board">
-			<div className="section-head split">
+			<div className="desk-hero split">
 				<div>
 					<h1>OTC board</h1>
 					<p>Browse token listings and make encrypted offers.</p>
@@ -61,13 +61,13 @@ export default function Board() {
 				</div>
 			</div>
 			{budget ? (
-				<p role="status">
+				<p className="desk-notice" role="status">
 					{betaFull
 						? "The beta has reached its escrow limit. Existing deals can still settle or refund."
 						: "Public mainnet beta. Sell up to 1 USDC for up to 0.01 SOL per deal. Escrow assets and amounts are public."}
 				</p>
 			) : health.data?.settlement === "pilot" ? (
-				<p role="status">
+				<p className="desk-notice" role="status">
 					Mainnet funding and settlement are available to pilot wallets.
 				</p>
 			) : null}

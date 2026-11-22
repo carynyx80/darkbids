@@ -1,7 +1,7 @@
 export default function Burns() {
 	return (
 		<section className="stack">
-			<div className="section-head">
+			<div className="desk-hero">
 				<h1>Burn receipts</h1>
 			</div>
 			<div className="panel">
