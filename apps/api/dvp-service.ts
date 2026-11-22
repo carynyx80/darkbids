@@ -167,7 +167,10 @@ export async function createDvpService(
 	authoritySeed: string,
 	treasury: Address,
 	screen: (wallet: string) => Promise<void>,
-	pilot?: z.infer<typeof pilotWallets>,
+	{
+		pilot,
+		publicSettlement,
+	}: { pilot?: z.infer<typeof pilotWallets>; publicSettlement: boolean },
 ) {
 	const endpoint = new URL("https://mainnet.helius-rpc.com");
 	endpoint.searchParams.set("api-key", rpcKey);
@@ -417,7 +420,7 @@ export async function createDvpService(
 	}
 
 	function enforcePilotTrade(trade: Parameters<typeof isPilotTrade>[1]) {
-		if (!isPilotTrade(pilot, trade))
+		if (!publicSettlement && !isPilotTrade(pilot, trade))
 			throw new DvpError(
 				403,
 				"Pilot trades are limited to 1 USDC against 0.01 SOL",
@@ -425,7 +428,7 @@ export async function createDvpService(
 	}
 
 	function enforcePilotDeal(deal: Deal) {
-		if (!isPilotDeal(pilot, deal))
+		if (!publicSettlement && !isPilotDeal(pilot, deal))
 			throw new DvpError(403, "This deal is outside the OTC pilot");
 	}
 

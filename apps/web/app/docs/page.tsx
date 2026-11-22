@@ -27,9 +27,11 @@ export default function Guide() {
 			<article className="panel stack">
 				<h2>Transaction support</h2>
 				<p>
-					Wallets must support version 1 on the selected network. Enabled test
-					sends and withdrawals use an on-device prover. Deal funding and
-					settlement are unavailable.
+					Use a wallet that supports Solana version 1 transactions on mainnet.
+					After both parties sign, verify the terms and fund your side of
+					escrow. The seller can settle once both sides are funded. Each party
+					can reclaim its own deposit from an unsettled trade. Assets and
+					amounts are public once posted on-chain.
 				</p>
 			</article>
 		</section>

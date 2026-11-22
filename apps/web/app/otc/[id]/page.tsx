@@ -197,8 +197,8 @@ export default function Detail() {
 					<form className="panel stack" onSubmit={submit}>
 						<h2>Make an offer</h2>
 						<p>
-							Only the seller can decrypt the offer. Funding and settlement are
-							unavailable.
+							Only the seller can decrypt the offer. Assets and amounts become
+							public when the deal is posted to on-chain escrow.
 						</p>
 						<label>
 							Size

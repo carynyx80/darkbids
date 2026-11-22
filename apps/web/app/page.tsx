@@ -45,7 +45,7 @@ export default function Home() {
 								Once the seller accepts, both parties can sign the agreed terms.
 							</li>
 						</ol>
-						<p>On-chain funding and settlement are pending.</p>
+						<p>Fund escrow and settle on Solana mainnet.</p>
 						<Link href="/otc">
 							Explore listings <span aria-hidden="true">↗</span>
 						</Link>
@@ -98,9 +98,9 @@ export default function Home() {
 					<details>
 						<summary>Can I settle an OTC trade?</summary>
 						<p>
-							You can browse listings, negotiate through encrypted offers, and
-							accept an offer. On-chain trade funding and settlement are
-							pending.
+							After both wallets sign the agreed terms, each funds its side of
+							escrow. Settlement exchanges both assets in one Solana
+							transaction. Funded assets and amounts are visible on-chain.
 						</p>
 					</details>
 				</div>

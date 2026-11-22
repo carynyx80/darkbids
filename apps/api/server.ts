@@ -58,6 +58,7 @@ const config = z
 		ENABLE_MAINNET_VAULT_READS: z.enum(["true", "false"]).default("false"),
 		ENABLE_MAINNET_OTC_SETTLEMENT: z.enum(["true", "false"]).default("false"),
 		OTC_PILOT_WALLETS: z.string().optional(),
+		ENABLE_PUBLIC_OTC_SETTLEMENT: z.enum(["true", "false"]).default("false"),
 		OTC_SETTLEMENT_SIGNER_SEED: z.base64().optional(),
 		ENABLE_MAINNET: z.enum(["true", "false"]).default("false"),
 	})
@@ -73,9 +74,10 @@ const pilot = config.OTC_PILOT_WALLETS
 			config.OTC_PILOT_WALLETS.split(",").map((item) => item.trim()),
 		)
 	: undefined;
+const publicSettlement = config.ENABLE_PUBLIC_OTC_SETTLEMENT === "true";
 if (
 	config.ENABLE_MAINNET_OTC_SETTLEMENT === "true" &&
-	(!pilot ||
+	((!publicSettlement && !pilot) ||
 		config.NEXT_PUBLIC_NETWORK !== "mainnet" ||
 		!config.HELIUS_MAINNET_API_KEY ||
 		!config.OTC_SETTLEMENT_SIGNER_SEED ||
@@ -83,7 +85,7 @@ if (
 		config.TREASURY_WALLET_NETWORK !== "mainnet")
 )
 	throw new Error(
-		"OTC pilot requires mainnet credentials and two pilot wallets",
+		"OTC settlement requires mainnet credentials and an access mode",
 	);
 
 const origin = new URL(config.WEB_ORIGIN).origin;
@@ -204,7 +206,7 @@ const settlement =
 				config.OTC_SETTLEMENT_SIGNER_SEED,
 				address(config.TREASURY_WALLET_ADDRESS),
 				screen,
-				pilot,
+				{ pilot, publicSettlement },
 			)
 		: undefined;
 
@@ -270,7 +272,11 @@ api.get("/health", async () => {
 	return {
 		network: config.NEXT_PUBLIC_NETWORK,
 		database: "connected",
-		settlement: settlementFunding ? "pilot" : "unavailable",
+		settlement: settlementFunding
+			? publicSettlement
+				? "available"
+				: "pilot"
+			: "unavailable",
 		mainnetVaultReads,
 		mainnetVaultWrites,
 		treasuryWallet: config.TREASURY_WALLET_ADDRESS || null,
@@ -484,7 +490,8 @@ api.get("/deals/:id", async (request) => {
 	);
 	if (!result.rowCount) throw new Rejection(404, "Deal unavailable");
 	const deal = result.rows[0];
-	const fundingAllowed = settlementFunding && isPilotDeal(pilot, deal);
+	const fundingAllowed =
+		settlementFunding && (publicSettlement || isPilotDeal(pilot, deal));
 	return {
 		...deal,
 		settlement_enabled: Boolean(
