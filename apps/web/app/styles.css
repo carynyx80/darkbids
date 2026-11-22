@@ -762,3 +762,17 @@ code {
 .receipt-fields input {
 	width: auto;
 }
+
+.wallet-picker {
+	padding-block: 4px 16px;
+}
+
+.wallet-picker p {
+	margin: 0;
+}
+
+.wallet-options {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}

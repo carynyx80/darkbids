@@ -36,6 +36,19 @@ type FeatureMap = {
 };
 export type StandardWallet = { name: string; features: Partial<FeatureMap> };
 
+export function solanaAccount(accounts: readonly Account[], current?: string) {
+	const supported = accounts.filter(
+		(account) =>
+			account.chains.some((chain) => chain.startsWith("solana:")) &&
+			account.features.includes("solana:signMessage"),
+	);
+	return (
+		supported.find((account) => current && account.address === current) ??
+		supported.find((account) => account.chains.includes("solana:mainnet")) ??
+		supported[0]
+	);
+}
+
 export function discoverWallets(listener: (wallet: StandardWallet) => void) {
 	const api = {
 		register: (...wallets: StandardWallet[]) => {

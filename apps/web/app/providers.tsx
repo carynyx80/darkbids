@@ -1,18 +1,19 @@
 "use client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
 import { authMessage } from "@veil/core/contracts";
-import { z } from "zod";
 import { encode } from "@veil/core/vault";
+import { usePathname } from "next/navigation";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { z } from "zod";
 import {
 	type Account,
-	type StandardWallet,
 	clearSeed,
 	discoverWallets,
 	rememberSeed,
 	restoreSeed,
+	type StandardWallet,
 	signMessage,
+	solanaAccount,
 	unlock,
 } from "./wallet";
 
@@ -60,6 +61,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname();
 	const showWallet =
 		pathname === "/app" ||
+		pathname === "/otc" ||
 		pathname.startsWith("/otc/") ||
 		pathname.startsWith("/deals/");
 	const [query] = useState(() => new QueryClient());
@@ -70,6 +72,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 	const [token, setToken] = useState<string>();
 	const [notice, setNotice] = useState("");
 	const [busy, setBusy] = useState(false);
+	const [pickerOpen, setPickerOpen] = useState(false);
 	const seedRef = useRef<Uint8Array<ArrayBuffer> | undefined>(undefined);
 	const generation = useRef(0);
 	function lock() {
@@ -106,13 +109,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
 	}, [query]);
 	useEffect(() =>
 		wallet?.features["standard:events"]?.on("change", (event) => {
-			if (
-				!event.accounts ||
-				event.accounts.some((item) => item.address === account?.address)
-			)
+			if (!event.accounts) return;
+			const next = solanaAccount(event.accounts, account?.address);
+			if (next?.address === account?.address) {
+				setAccount(next);
 				return;
+			}
 			lock();
-			setAccount(event.accounts[0]);
+			setAccount(next);
 		}),
 	);
 	async function connect(candidate: StandardWallet) {
@@ -120,12 +124,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
 		setBusy(true);
 		try {
 			const result = await candidate.features["standard:connect"]?.connect();
-			if (!result?.accounts[0])
-				throw new Error("Wallet has no authorized account");
+			const next = solanaAccount(result?.accounts ?? []);
+			if (!next)
+				throw new Error(
+					"This wallet did not provide a Solana account with message signing.",
+				);
 			if (account) lock();
 			setWallet(candidate);
-			setAccount(result.accounts[0]);
-			const recovered = restoreSeed(result.accounts[0]);
+			setAccount(next);
+			setPickerOpen(false);
+			const recovered = restoreSeed(next);
 			seedRef.current = recovered;
 			setSeed(recovered);
 		} catch (error) {
@@ -232,24 +240,77 @@ export function Providers({ children }: { children: React.ReactNode }) {
 										Disconnect
 									</button>
 								</>
-							) : wallets.length ? (
-								wallets.map((candidate) => (
-									<button
-										type="button"
-										key={candidate.name}
-										onClick={() => connect(candidate)}
-										disabled={busy}
-									>
-										{candidate.name}
-									</button>
-								))
 							) : (
-								<span>
-									Connect a Solana Wallet Standard extension to use the vault.
-								</span>
+								<button
+									type="button"
+									className="primary"
+									aria-expanded={pickerOpen}
+									aria-controls={
+										pickerOpen ? "solana-wallet-picker" : undefined
+									}
+									onClick={() => {
+										setNotice("");
+										setPickerOpen((open) => !open);
+									}}
+								>
+									Connect Solana Wallet
+								</button>
 							)}
 							{notice && <span role="status">{notice}</span>}
 						</div>
+						{!account && pickerOpen && (
+							<div
+								className="shell wallet-picker stack"
+								id="solana-wallet-picker"
+							>
+								{wallets.length ? (
+									<div className="wallet-options">
+										{wallets.map((candidate) => (
+											<button
+												type="button"
+												key={candidate.name}
+												onClick={() => connect(candidate)}
+												disabled={busy}
+											>
+												{candidate.name}
+											</button>
+										))}
+									</div>
+								) : (
+									<>
+										<p>
+											No Solana wallet detected. On desktop, open this page in a
+											browser with a Solana wallet extension enabled.
+										</p>
+										<div className="wallet-options">
+											<a
+												className="button"
+												href={`https://phantom.com/ul/browse/${encodeURIComponent(window.location.origin + pathname)}?ref=${encodeURIComponent(window.location.origin)}`}
+											>
+												Open in Phantom on mobile
+											</a>
+											<button
+												type="button"
+												onClick={async () => {
+													try {
+														await navigator.clipboard.writeText(
+															window.location.origin + pathname,
+														);
+														setNotice("Page link copied.");
+													} catch {
+														setNotice(
+															"Copy the page link from your browser’s address bar.",
+														);
+													}
+												}}
+											>
+												Copy page link
+											</button>
+										</div>
+									</>
+								)}
+							</div>
+						)}
 					</div>
 				)}
 				{children}

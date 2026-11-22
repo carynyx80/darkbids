@@ -1,5 +1,5 @@
 import { generateKeyPairSync as generateNodeKeyPair } from "node:crypto";
-import { test, expect, type Page, type Browser } from "@playwright/test";
+import { type Browser, expect, type Page, test } from "@playwright/test";
 import { address, createSolanaRpc, lamports } from "@solana/kit";
 import bs58 from "bs58";
 
@@ -87,6 +87,7 @@ async function setupWallet(browser: Browser) {
 		{ key, walletAddress },
 	);
 	await page.goto(`${baseUrl}/app`);
+	await page.getByRole("button", { name: "Connect Solana Wallet" }).click();
 	await page.getByRole("button", { name: "Test Wallet" }).click();
 	await page.getByRole("button", { name: "Unlock vault" }).click();
 	await page
