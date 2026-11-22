@@ -845,6 +845,9 @@ code {
 }
 
 .liquidity-metrics > div {
+	display: grid;
+	align-content: start;
+	gap: 4px;
 	padding: 12px;
 	border: 1px solid var(--line);
 	border-radius: 12px;
@@ -864,6 +867,7 @@ code {
 }
 
 .liquidity-metrics dd {
+	white-space: nowrap;
 	font-size: 1.4rem;
 	line-height: 1.25;
 	font-weight: 650;
@@ -919,7 +923,7 @@ code {
 	width: auto;
 }
 
-@media (max-width: 650px) {
+@media (max-width: 720px) {
 	.liquidity-hero,
 	.form-pair,
 	.form-pair.mint-fields {
