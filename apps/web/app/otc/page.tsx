@@ -60,11 +60,10 @@ export default function Board() {
 					</Link>
 				</div>
 			</div>
-			{budget ? (
+			{betaFull ? (
 				<p className="desk-notice" role="status">
-					{betaFull
-						? "The beta has reached its escrow limit. Existing deals can still settle or refund."
-						: "Public mainnet beta. Sell up to 1 USDC for up to 0.01 SOL per deal. Escrow assets and amounts are public."}
+					The beta has reached its escrow limit. Existing deals can still settle
+					or refund.
 				</p>
 			) : health.data?.settlement === "pilot" ? (
 				<p className="desk-notice" role="status">
