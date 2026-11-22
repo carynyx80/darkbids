@@ -49,6 +49,7 @@ type Session = {
 	token?: string;
 	lock(): void;
 	authenticate(): Promise<void>;
+	walletMenu: React.ReactNode;
 };
 const session = createContext<Session | undefined>(undefined);
 export function useSession() {
@@ -59,11 +60,7 @@ export function useSession() {
 
 export function Providers({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname();
-	const showWallet =
-		pathname === "/app" ||
-		pathname === "/otc" ||
-		pathname.startsWith("/otc/") ||
-		pathname.startsWith("/deals/");
+
 	const [query] = useState(() => new QueryClient());
 	const [wallets, setWallets] = useState<StandardWallet[]>([]);
 	const [wallet, setWallet] = useState<StandardWallet>();
@@ -196,123 +193,114 @@ export function Providers({ children }: { children: React.ReactNode }) {
 			setBusy(false);
 		}
 	}
+	const walletMenu = (
+		<div className="wallet-menu">
+			<div className="wallet-inner">
+				{account ? (
+					<>
+						<span className="mono">
+							{account.address.slice(0, 6)}…{account.address.slice(-5)}
+						</span>
+						<button
+							type="button"
+							onClick={authenticate}
+							disabled={busy || Boolean(token)}
+						>
+							{token
+								? "Desk session active"
+								: seed
+									? "Sign in to desk"
+									: "Unlock vault"}
+						</button>
+						{token && (
+							<button type="button" onClick={authenticate} disabled={busy}>
+								Renew sign-in
+							</button>
+						)}
+						<button
+							type="button"
+							onClick={() => {
+								lock();
+								setAccount(undefined);
+								setWallet(undefined);
+							}}
+						>
+							Disconnect
+						</button>
+					</>
+				) : (
+					<button
+						type="button"
+						className="primary"
+						aria-expanded={pickerOpen}
+						aria-controls={pickerOpen ? "solana-wallet-picker" : undefined}
+						onClick={() => {
+							setNotice("");
+							setPickerOpen((open) => !open);
+						}}
+					>
+						Connect Solana Wallet
+					</button>
+				)}
+				{notice && <span role="status">{notice}</span>}
+			</div>
+			{!account && pickerOpen && (
+				<div className="wallet-picker stack" id="solana-wallet-picker">
+					{wallets.length ? (
+						<div className="wallet-options">
+							{wallets.map((candidate) => (
+								<button
+									type="button"
+									key={candidate.name}
+									onClick={() => connect(candidate)}
+									disabled={busy}
+								>
+									{candidate.name}
+								</button>
+							))}
+						</div>
+					) : (
+						<>
+							<p>
+								No Solana wallet detected. On desktop, open this page in a
+								browser with a Solana wallet extension enabled.
+							</p>
+							<div className="wallet-options">
+								<a
+									className="button"
+									href={`https://phantom.com/ul/browse/${encodeURIComponent(window.location.origin + pathname)}?ref=${encodeURIComponent(window.location.origin)}`}
+								>
+									Open in Phantom on mobile
+								</a>
+								<button
+									type="button"
+									onClick={async () => {
+										try {
+											await navigator.clipboard.writeText(
+												window.location.origin + pathname,
+											);
+											setNotice("Page link copied.");
+										} catch {
+											setNotice(
+												"Copy the page link from your browser’s address bar.",
+											);
+										}
+									}}
+								>
+									Copy page link
+								</button>
+							</div>
+						</>
+					)}
+				</div>
+			)}
+		</div>
+	);
 	return (
 		<QueryClientProvider client={query}>
 			<session.Provider
-				value={{ wallet, account, token, seed, lock, authenticate }}
+				value={{ wallet, account, token, seed, lock, authenticate, walletMenu }}
 			>
-				{showWallet && (
-					<div className="wallet-strip">
-						<div className="shell wallet-inner">
-							{account ? (
-								<>
-									<span className="mono">
-										{account.address.slice(0, 6)}…{account.address.slice(-5)}
-									</span>
-									<button
-										type="button"
-										onClick={authenticate}
-										disabled={busy || Boolean(token)}
-									>
-										{token
-											? "Desk session active"
-											: seed
-												? "Sign in to desk"
-												: "Unlock vault"}
-									</button>
-									{token && (
-										<button
-											type="button"
-											onClick={authenticate}
-											disabled={busy}
-										>
-											Renew sign-in
-										</button>
-									)}
-									<button
-										type="button"
-										onClick={() => {
-											lock();
-											setAccount(undefined);
-											setWallet(undefined);
-										}}
-									>
-										Disconnect
-									</button>
-								</>
-							) : (
-								<button
-									type="button"
-									className="primary"
-									aria-expanded={pickerOpen}
-									aria-controls={
-										pickerOpen ? "solana-wallet-picker" : undefined
-									}
-									onClick={() => {
-										setNotice("");
-										setPickerOpen((open) => !open);
-									}}
-								>
-									Connect Solana Wallet
-								</button>
-							)}
-							{notice && <span role="status">{notice}</span>}
-						</div>
-						{!account && pickerOpen && (
-							<div
-								className="shell wallet-picker stack"
-								id="solana-wallet-picker"
-							>
-								{wallets.length ? (
-									<div className="wallet-options">
-										{wallets.map((candidate) => (
-											<button
-												type="button"
-												key={candidate.name}
-												onClick={() => connect(candidate)}
-												disabled={busy}
-											>
-												{candidate.name}
-											</button>
-										))}
-									</div>
-								) : (
-									<>
-										<p>
-											No Solana wallet detected. On desktop, open this page in a
-											browser with a Solana wallet extension enabled.
-										</p>
-										<div className="wallet-options">
-											<a
-												className="button"
-												href={`https://phantom.com/ul/browse/${encodeURIComponent(window.location.origin + pathname)}?ref=${encodeURIComponent(window.location.origin)}`}
-											>
-												Open in Phantom on mobile
-											</a>
-											<button
-												type="button"
-												onClick={async () => {
-													try {
-														await navigator.clipboard.writeText(
-															window.location.origin + pathname,
-														);
-														setNotice("Page link copied.");
-													} catch {
-														setNotice(
-															"Copy the page link from your browser’s address bar.",
-														);
-													}
-												}}
-											>
-												Copy page link
-											</button>
-										</div>
-									</>
-								)}
-							</div>
-						)}
-					</div>
-				)}
 				{children}
 			</session.Provider>
 		</QueryClientProvider>

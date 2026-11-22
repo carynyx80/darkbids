@@ -15,18 +15,20 @@ export function SiteFrame({
 }) {
 	const workspace = usePathname() !== "/";
 	return (
-		<div className={workspace ? "site-frame workspace" : "site-frame landing"}>
-			<header className="site-header">
-				<div className="shell topbar">
-					<Link href="/" className="brand">
-						<span className="brand-mark" aria-hidden="true" />
-						{brand}
-					</Link>
-					<MainNav />
-				</div>
-			</header>
-			<div className="site-content">
-				<Providers>
+		<Providers>
+			<div
+				className={workspace ? "site-frame workspace" : "site-frame landing"}
+			>
+				<header className="site-header">
+					<div className="shell topbar">
+						<Link href="/" className="brand">
+							<span className="brand-mark" aria-hidden="true" />
+							{brand}
+						</Link>
+						<MainNav />
+					</div>
+				</header>
+				<div className="site-content">
 					<main className="shell" id="main-content">
 						{children}
 					</main>
@@ -43,8 +45,8 @@ export function SiteFrame({
 							<Link href="/privacy">Privacy</Link>
 						</nav>
 					</footer>
-				</Providers>
+				</div>
 			</div>
-		</div>
+		</Providers>
 	);
 }

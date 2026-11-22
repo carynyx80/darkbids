@@ -177,18 +177,19 @@ footer .brand {
 footer .brand-mark {
 	width: 23px;
 }
-.wallet-strip {
-	background: #1e0c0a;
+.wallet-menu {
 	border-bottom: 1px solid var(--line);
+	padding: 7px 5px 11px;
 	color: var(--muted);
-	font-size: 0.9rem;
 }
 .wallet-inner {
 	justify-content: flex-start;
-	min-height: 57px;
-	padding-block: 8px;
 	gap: 8px;
 }
+.wallet-inner .primary {
+	width: 100%;
+}
+
 main {
 	min-height: 65vh;
 	padding-block: 40px 70px;
@@ -764,7 +765,7 @@ code {
 }
 
 .wallet-picker {
-	padding-block: 4px 16px;
+	padding-top: 10px;
 }
 
 .wallet-picker p {

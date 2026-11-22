@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
+import { useSession } from "./providers";
 
 const links = [
 	["Home", "/"],
@@ -19,6 +20,7 @@ const links = [
 
 export function MainNav() {
 	const path = usePathname();
+	const { walletMenu } = useSession();
 	const disclosure = useRef<HTMLDetailsElement>(null);
 	const trigger = useRef<HTMLElement>(null);
 
@@ -54,6 +56,7 @@ export function MainNav() {
 				Menu
 			</summary>
 			<nav className="main-nav" aria-label="Primary">
+				{walletMenu}
 				{links.map(([label, href]) => (
 					<Link
 						key={href}

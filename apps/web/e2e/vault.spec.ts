@@ -87,9 +87,11 @@ async function setupWallet(browser: Browser) {
 		{ key, walletAddress },
 	);
 	await page.goto(`${baseUrl}/app`);
+	await page.getByText("Menu", { exact: true }).click();
 	await page.getByRole("button", { name: "Connect Solana Wallet" }).click();
 	await page.getByRole("button", { name: "Test Wallet" }).click();
 	await page.getByRole("button", { name: "Unlock vault" }).click();
+	await page.keyboard.press("Escape");
 	await page
 		.locator("summary")
 		.filter({ hasText: "Shielded receiving address" })
