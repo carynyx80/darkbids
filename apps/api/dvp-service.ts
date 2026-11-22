@@ -36,6 +36,10 @@ import {
 } from "@veil/core/dvp";
 import { parseUnits } from "@veil/core/fees";
 import {
+	treasuryApprovalMessage,
+	validWalletSignature,
+} from "@veil/core/otc-workflows";
+import {
 	settlementApprovalMessage,
 	settlementOpeningInput,
 	verifySettlementOpening,
@@ -44,6 +48,12 @@ import bs58 from "bs58";
 import type { Pool } from "pg";
 import nacl from "tweetnacl";
 import { z } from "zod";
+import {
+	isPilotDeal,
+	isPilotTrade,
+	type pilotWallets,
+	USDC_MINT,
+} from "./otc-pilot";
 
 export const dvpAction = z.enum(["create", "fund", "settle", "refund"]);
 export const dvpPrepare = z.strictObject({
@@ -63,7 +73,7 @@ export class DvpError extends Error {
 	}
 }
 
-const USDC = address("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+const USDC = address(USDC_MINT);
 const WSOL = address(SOL_MINT);
 const ATA_PROGRAM = address("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 const SYSTEM = address("11111111111111111111111111111111");
@@ -157,6 +167,7 @@ export async function createDvpService(
 	authoritySeed: string,
 	treasury: Address,
 	screen: (wallet: string) => Promise<void>,
+	pilot?: z.infer<typeof pilotWallets>,
 ) {
 	const endpoint = new URL("https://mainnet.helius-rpc.com");
 	endpoint.searchParams.set("api-key", rpcKey);
@@ -166,6 +177,12 @@ export async function createDvpService(
 		throw new Error("Settlement signer must contain a 32-byte seed");
 	const authority = await createKeyPairSignerFromPrivateKeyBytes(secret);
 	secret.fill(0);
+	if (
+		pilot?.some((wallet) => wallet === treasury || wallet === authority.address)
+	)
+		throw new Error(
+			"Pilot wallets must be separate from the treasury and authority",
+		);
 	if (authority.address === treasury)
 		throw new Error("Settlement signer must be separate from the treasury");
 
@@ -264,6 +281,35 @@ export async function createDvpService(
 				409,
 				"Both wallets must sign these exact settlement terms",
 			);
+		const { rows: policies } = await pool.query<{
+			wallet: string;
+			approver: string;
+			sol_threshold: string;
+			usdc_threshold: string;
+			approved_commitment: string | null;
+			approval_signature: string | null;
+		}>("SELECT * FROM otc_deal_policy WHERE offer_id=$1", [id]);
+		for (const policy of policies) {
+			const limit = BigInt(
+				opening.terms.quote === "SOL"
+					? policy.sol_threshold
+					: policy.usdc_threshold,
+			);
+			if (
+				approved.quoteAmount > limit &&
+				(policy.approved_commitment !== approved.commitment ||
+					!policy.approval_signature ||
+					!validWalletSignature(
+						policy.approver,
+						policy.approval_signature,
+						treasuryApprovalMessage(id, policy.wallet, approved.commitment),
+					))
+			)
+				throw new DvpError(
+					409,
+					"A treasury approver must sign these terms before escrow can be created",
+				);
+		}
 		const assetMint = address(opening.terms.mint);
 		const quoteMint = opening.terms.quote === "USDC" ? USDC : WSOL;
 		if (assetMint === quoteMint)
@@ -293,6 +339,13 @@ export async function createDvpService(
 				"Asset quantity does not match the mint precision",
 			);
 		}
+		enforcePilotTrade({
+			...deal,
+			assetMint,
+			quoteMint,
+			assetAmount: amount,
+			quoteAmount: approved.quoteAmount,
+		});
 		const terms: StoredTerms = {
 			seller: address(deal.seller),
 			buyer: address(deal.buyer),
@@ -363,6 +416,19 @@ export async function createDvpService(
 		};
 	}
 
+	function enforcePilotTrade(trade: Parameters<typeof isPilotTrade>[1]) {
+		if (!isPilotTrade(pilot, trade))
+			throw new DvpError(
+				403,
+				"Pilot trades are limited to 1 USDC against 0.01 SOL",
+			);
+	}
+
+	function enforcePilotDeal(deal: Deal) {
+		if (!isPilotDeal(pilot, deal))
+			throw new DvpError(403, "This deal is outside the OTC pilot");
+	}
+
 	function enforceActive(deal: Deal) {
 		if (
 			!deal.accepted_at ||
@@ -398,6 +464,37 @@ export async function createDvpService(
 			};
 		},
 
+		async confirmedReceipt(id: string, wallet: string) {
+			await dealFor(id, wallet);
+			const { rows } = await pool.query<{
+				signature: ReturnType<typeof getSignatureFromTransaction>;
+				confirmed_at: Date | null;
+			}>(
+				`SELECT signature,confirmed_at FROM settlement_transaction WHERE offer_id=$1
+				 AND action='settle' AND signature IS NOT NULL
+				 ORDER BY confirmed_at DESC NULLS LAST, last_valid_block_height DESC LIMIT 20`,
+				[id],
+			);
+			if (!rows.length) return { signature: null };
+			if (rows[0].confirmed_at) return { signature: rows[0].signature };
+			const result = await rpc
+				.getSignatureStatuses(
+					rows.map((row) => row.signature),
+					{ searchTransactionHistory: true },
+				)
+				.send({ abortSignal: AbortSignal.timeout(10000) });
+			const confirmed = result.value.findIndex(
+				(status) => status?.confirmationStatus === "finalized" && !status.err,
+			);
+			if (confirmed === -1) return { signature: null };
+			const signature = rows[confirmed].signature;
+			await pool.query(
+				"UPDATE settlement_transaction SET confirmed_at=now() WHERE offer_id=$1 AND action='settle' AND signature=$2",
+				[id, signature],
+			);
+			return { signature };
+		},
+
 		async prepare(
 			id: string,
 			wallet: Address,
@@ -406,6 +503,7 @@ export async function createDvpService(
 		) {
 			const deal = await dealFor(id, wallet);
 			if (action !== "refund") {
+				enforcePilotDeal(deal);
 				enforceActive(deal);
 				await Promise.all([screen(deal.seller), screen(deal.buyer)]);
 			}
@@ -418,6 +516,7 @@ export async function createDvpService(
 					: null);
 			if (!stored) throw new DvpError(409, "Create the on-chain escrow first");
 			const terms = restore(stored);
+			if (action !== "refund") enforcePilotTrade(terms);
 			const current = await escrowState(
 				terms,
 				action === "refund" ? wallet : undefined,
@@ -598,7 +697,11 @@ export async function createDvpService(
 			if (plan.action !== "refund") {
 				if (!fundingEnabled)
 					throw new DvpError(503, "New OTC transactions are paused");
+				enforcePilotDeal(deal);
 				enforceActive(deal);
+				const stored = await storedTrade(id);
+				if (!stored) throw new DvpError(409, "Escrow is unavailable");
+				enforcePilotTrade(restore(stored));
 				await Promise.all([screen(deal.seller), screen(deal.buyer)]);
 			}
 			const decode = getTransactionDecoder();

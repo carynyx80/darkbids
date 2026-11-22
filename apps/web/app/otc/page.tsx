@@ -28,9 +28,14 @@ export default function Board() {
 					<h1>OTC board</h1>
 					<p>Browse token listings and make encrypted offers.</p>
 				</div>
-				<Link href="/otc/new" className="button primary">
-					Create listing
-				</Link>
+				<div className="split">
+					<Link href="/otc/quotes" className="button">
+						Private quote room
+					</Link>
+					<Link href="/otc/new" className="button primary">
+						Create listing
+					</Link>
+				</div>
 			</div>
 			<div className="panel filters">
 				<label>

@@ -745,3 +745,20 @@ code {
 		transform: none;
 	}
 }
+
+.receipt-fields {
+	display: grid;
+	gap: 0.5rem;
+	border: 0;
+	padding: 0;
+}
+
+.receipt-fields label {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.receipt-fields input {
+	width: auto;
+}

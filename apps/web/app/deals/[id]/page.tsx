@@ -20,7 +20,10 @@ import { expiry, short } from "../../otc/types";
 import { api, useSession } from "../../providers";
 import { signMessage } from "../../wallet";
 
+import { DealTreasury, TradeReceipt } from "./workflows";
+
 interface Deal {
+	private_rfq: boolean;
 	id: string;
 	listing_id: string;
 	seller: string;
@@ -110,8 +113,7 @@ export default function DealRoom() {
 					`${value.size} tokens at ${value.price} ${value.quote} each${asset}`,
 				);
 				if (
-					deal?.state === "ACCEPTED" &&
-					deal.terms &&
+					deal?.terms &&
 					account &&
 					deal.settlement_treasury &&
 					deal.counterparty_encryption_key
@@ -343,7 +345,11 @@ export default function DealRoom() {
 								<dd>{expiry(deal.expires_at)}</dd>
 							</div>
 						</dl>
-						<Link href={`/otc/${deal.listing_id}`}>View listing</Link>
+						{deal.private_rfq ? (
+							<Link href="/otc/quotes">Back to private quote room</Link>
+						) : (
+							<Link href={`/otc/${deal.listing_id}`}>View listing</Link>
+						)}
 						{seed && (deal.ciphertext || deal.terms) && (
 							<button type="button" onClick={reveal}>
 								{deal.terms ? "Decrypt accepted terms" : "Decrypt offer"}
@@ -510,6 +516,22 @@ export default function DealRoom() {
 						) : (
 							<p>On-chain funding and settlement are unavailable.</p>
 						)}
+						{deal.state === "ACCEPTED" && (
+							<DealTreasury
+								id={deal.id}
+								approval={approval}
+								signed={deal.settlement_commitment}
+							/>
+						)}
+						{approval &&
+							deal.settlement_commitment &&
+							escrow?.state === "closed" && (
+								<TradeReceipt
+									id={deal.id}
+									approval={approval}
+									signed={deal.settlement_commitment}
+								/>
+							)}
 						{approvalNotice && <p role="status">{approvalNotice}</p>}
 						{transactionSignature && (
 							<a href={`https://solscan.io/tx/${transactionSignature}`}>

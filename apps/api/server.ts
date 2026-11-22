@@ -30,6 +30,8 @@ import {
 	dvpPrepare,
 	dvpSubmit,
 } from "./dvp-service";
+import { isPilotDeal, pilotWallets } from "./otc-pilot";
+import { registerOtcWorkflows } from "./otc-workflows";
 import {
 	readBoundedPrivacyResponse,
 	readPrivacyRequest,
@@ -55,15 +57,34 @@ const config = z
 		ENABLE_MAINNET_VAULT_WRITES: z.enum(["true", "false"]).default("false"),
 		ENABLE_MAINNET_VAULT_READS: z.enum(["true", "false"]).default("false"),
 		ENABLE_MAINNET_OTC_SETTLEMENT: z.enum(["true", "false"]).default("false"),
+		OTC_PILOT_WALLETS: z.string().optional(),
 		OTC_SETTLEMENT_SIGNER_SEED: z.base64().optional(),
 		ENABLE_MAINNET: z.enum(["true", "false"]).default("false"),
 	})
 	.parse(process.env);
-if (config.NEXT_PUBLIC_NETWORK === "mainnet") {
-	if (config.ENABLE_MAINNET !== "true")
-		throw new Error("Mainnet requires explicit server enablement");
-	throw new Error("Mainnet launch is pending settlement verification");
-}
+if (
+	config.NEXT_PUBLIC_NETWORK === "mainnet" &&
+	config.ENABLE_MAINNET !== "true"
+)
+	throw new Error("Mainnet requires explicit server enablement");
+
+const pilot = config.OTC_PILOT_WALLETS
+	? pilotWallets.parse(
+			config.OTC_PILOT_WALLETS.split(",").map((item) => item.trim()),
+		)
+	: undefined;
+if (
+	config.ENABLE_MAINNET_OTC_SETTLEMENT === "true" &&
+	(!pilot ||
+		config.NEXT_PUBLIC_NETWORK !== "mainnet" ||
+		!config.HELIUS_MAINNET_API_KEY ||
+		!config.OTC_SETTLEMENT_SIGNER_SEED ||
+		!config.TREASURY_WALLET_ADDRESS ||
+		config.TREASURY_WALLET_NETWORK !== "mainnet")
+)
+	throw new Error(
+		"OTC pilot requires mainnet credentials and two pilot wallets",
+	);
 
 const origin = new URL(config.WEB_ORIGIN).origin;
 const webOrigins = config.ADDITIONAL_WEB_ORIGIN
@@ -74,7 +95,13 @@ const pool = new pg.Pool({
 	connectionString: config.DATABASE_URL,
 	connectionTimeoutMillis: 3000,
 });
-for (const migration of ["001.sql", "002.sql", "003.sql", "004.sql"]) {
+for (const migration of [
+	"001.sql",
+	"002.sql",
+	"003.sql",
+	"004.sql",
+	"005.sql",
+]) {
 	await pool.query(
 		await readFile(
 			new URL(`./migrations/${migration}`, import.meta.url),
@@ -177,6 +204,7 @@ const settlement =
 				config.OTC_SETTLEMENT_SIGNER_SEED,
 				address(config.TREASURY_WALLET_ADDRESS),
 				screen,
+				pilot,
 			)
 		: undefined;
 
@@ -242,7 +270,7 @@ api.get("/health", async () => {
 	return {
 		network: config.NEXT_PUBLIC_NETWORK,
 		database: "connected",
-		settlement: settlementFunding ? "available" : "unavailable",
+		settlement: settlementFunding ? "pilot" : "unavailable",
 		mainnetVaultReads,
 		mainnetVaultWrites,
 		treasuryWallet: config.TREASURY_WALLET_ADDRESS || null,
@@ -334,7 +362,7 @@ api.get("/listings", async (request) => {
 			? "expires_at ASC, id ASC"
 			: "created_at DESC, id DESC";
 	const result = await pool.query(
-		`SELECT ${columns} FROM listing WHERE NOT cancelled AND expires_at > now()
+		`SELECT ${columns} FROM listing WHERE NOT private_rfq AND NOT cancelled AND expires_at > now()
      AND ($1::text IS NULL OR quote=$1) AND ($2::text IS NULL OR category=$2)
      ORDER BY ${order} LIMIT 21 OFFSET $3`,
 		[filters.quote ?? null, filters.category ?? null, (filters.page - 1) * 20],
@@ -345,7 +373,7 @@ api.get("/listings", async (request) => {
 api.get("/listings/:id", async (request) => {
 	const row = (
 		await pool.query(
-			`SELECT ${columns} FROM listing WHERE id=$1 AND NOT cancelled`,
+			`SELECT ${columns} FROM listing WHERE id=$1 AND NOT private_rfq AND NOT cancelled`,
 			[idOf(request)],
 		)
 	).rows[0];
@@ -381,7 +409,7 @@ api.post("/listings", async (request, reply) => {
 api.delete("/listings/:id", async (request) => {
 	const wallet = await walletOf(request);
 	const result = await pool.query(
-		"UPDATE listing SET cancelled=true WHERE id=$1 AND seller=$2 AND NOT cancelled",
+		"UPDATE listing SET cancelled=true WHERE id=$1 AND seller=$2 AND NOT private_rfq AND NOT cancelled",
 		[idOf(request), wallet],
 	);
 	if (!result.rowCount) throw new Rejection(404, "Listing unavailable");
@@ -404,7 +432,7 @@ api.post("/listings/:id/offers", async (request, reply) => {
 	const id = randomUUID();
 	await screen(buyer);
 	const listing = await pool.query<{ seller: string }>(
-		"SELECT seller FROM listing WHERE id=$1 AND NOT cancelled AND expires_at > now()",
+		"SELECT seller FROM listing WHERE id=$1 AND NOT private_rfq AND NOT cancelled AND expires_at > now()",
 		[idOf(request)],
 	);
 	const seller = listing.rows[0]?.seller;
@@ -437,7 +465,7 @@ api.get("/listings/:id/offers", async (request) => {
 api.get("/deals/:id", async (request) => {
 	const wallet = await walletOf(request);
 	const result = await pool.query(
-		`SELECT o.id, o.listing_id, o.buyer, l.seller, l.expires_at,
+		`SELECT o.id, o.listing_id, o.buyer, l.seller, l.expires_at, l.private_rfq,
      CASE WHEN l.cancelled THEN 'CANCELLED' WHEN l.expires_at <= now() THEN 'EXPIRED'
      WHEN o.accepted_at IS NOT NULL THEN 'ACCEPTED' ELSE 'OFFERED' END AS state,
      CASE WHEN l.seller=$2 THEN o.ciphertext END AS ciphertext,
@@ -455,12 +483,14 @@ api.get("/deals/:id", async (request) => {
 		[idOf(request), wallet],
 	);
 	if (!result.rowCount) throw new Rejection(404, "Deal unavailable");
+	const deal = result.rows[0];
+	const fundingAllowed = settlementFunding && isPilotDeal(pilot, deal);
 	return {
-		...result.rows[0],
+		...deal,
 		settlement_enabled: Boolean(
-			settlement && (settlementFunding || result.rows[0].escrow_configured),
+			settlement && (fundingAllowed || deal.escrow_configured),
 		),
-		settlement_funding_enabled: settlementFunding,
+		settlement_funding_enabled: fundingAllowed,
 		settlement_treasury:
 			config.TREASURY_WALLET_NETWORK === "mainnet"
 				? config.TREASURY_WALLET_ADDRESS || null
@@ -484,7 +514,7 @@ api.post("/deals/:id/accept", async (request) => {
 	try {
 		await client.query("BEGIN");
 		const active = await client.query(
-			"SELECT id FROM listing WHERE id=$1 AND NOT cancelled AND expires_at > now() FOR UPDATE",
+			"SELECT id FROM listing WHERE id=$1 AND NOT private_rfq AND NOT cancelled AND expires_at > now() FOR UPDATE",
 			[offer.listing_id],
 		);
 		if (!active.rowCount) throw new Rejection(409, "Listing unavailable");
@@ -616,5 +646,22 @@ for (const action of ["fund", "seal"]) {
 	});
 }
 api.get("/burns", async () => ({ items: [], job: "unavailable" }));
+
+api.get("/deals/:id/receipt", async (request) => {
+	const wallet = await walletOf(request);
+	if (!settlement) throw new Rejection(503, "OTC settlement is unavailable");
+	return settlement.confirmedReceipt(idOf(request), wallet);
+});
+
+registerOtcWorkflows(api, {
+	pool,
+	walletOf,
+	screen,
+	Rejection,
+	treasury:
+		config.TREASURY_WALLET_NETWORK === "mainnet"
+			? config.TREASURY_WALLET_ADDRESS
+			: undefined,
+});
 
 await api.listen({ host: config.HOST, port: config.PORT });
