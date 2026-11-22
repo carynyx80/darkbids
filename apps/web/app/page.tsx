@@ -24,6 +24,9 @@ export default function Home() {
 							Browse OTC board
 						</Link>
 					</div>
+					<Link href="/#how-it-works" className="hero-guide">
+						How it works <span aria-hidden="true">↓</span>
+					</Link>
 				</div>
 			</section>
 			<section

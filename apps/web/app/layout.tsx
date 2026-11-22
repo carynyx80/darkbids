@@ -9,7 +9,7 @@ export const metadata = {
 	metadataBase: new URL(PUBLIC_SITE_ORIGIN),
 	description:
 		"Encrypted OTC offers and a private Solana vault for SOL and USDC.",
-	icons: { icon: "/icon.png", apple: "/brand/useparlo-mark.png" },
+	icons: { icon: "/icon.png", apple: "/brand/primar-mark.png" },
 };
 
 export default function Layout({

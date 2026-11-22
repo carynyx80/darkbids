@@ -1,13 +1,13 @@
 :root {
 	color-scheme: dark;
-	--base: #0c171c;
-	--raised: #183139;
-	--panel: #112329;
-	--line: #2c4147;
-	--muted: #a8bdbe;
-	--text: #eef6f2;
-	--accent: #a4e8d5;
-	--accent-light: #c9f5e8;
+	--base: #100806;
+	--raised: #341510;
+	--panel: #23110f;
+	--line: #52261d;
+	--muted: #c8aca4;
+	--text: #f6ecea;
+	--accent: #e43e16;
+	--accent-light: #ff9278;
 	--mono: ui-monospace, SFMono-Regular, Consolas, monospace;
 	--ease: cubic-bezier(0.2, 0.75, 0.25, 1);
 }
@@ -51,7 +51,7 @@ p {
 	max-width: 60ch;
 }
 a {
-	color: var(--accent);
+	color: var(--accent-light);
 	text-underline-offset: 4px;
 }
 .shell {
@@ -60,7 +60,7 @@ a {
 }
 
 header {
-	background: #112329;
+	background: #23110f;
 	border-bottom: 1px solid var(--line);
 }
 .topbar,
@@ -151,6 +151,7 @@ nav a[aria-current] {
 	background: var(--raised);
 }
 .main-nav a[aria-current] {
+	box-shadow: inset 2px 0 var(--accent);
 	font-weight: 650;
 }
 .brand {
@@ -168,7 +169,7 @@ nav a[aria-current] {
 	flex: 0 0 auto;
 	aspect-ratio: 1;
 	border-radius: 7px;
-	background: url("/brand/useparlo-mark.png") center / cover;
+	background: url("/brand/primar-mark.png") center / cover;
 }
 footer .brand {
 	font-size: 1.3rem;
@@ -177,7 +178,7 @@ footer .brand-mark {
 	width: 23px;
 }
 .wallet-strip {
-	background: #102129;
+	background: #1e0c0a;
 	border-bottom: 1px solid var(--line);
 	color: var(--muted);
 	font-size: 0.9rem;
@@ -205,11 +206,11 @@ footer {
 	display: grid;
 	align-items: center;
 	overflow: hidden;
-	min-height: min(660px, 76svh);
-	padding: clamp(25px, 6.5vw, 90px);
+	min-height: min(620px, 76svh);
+	padding: clamp(25px, 6.5vw, 82px);
 	border: 1px solid var(--line);
-	border-radius: 36px;
-	background: #0b1a20;
+	border-radius: 26px;
+	background: #1f0a07;
 }
 .hero-content {
 	display: grid;
@@ -218,7 +219,7 @@ footer {
 }
 .hero h1 {
 	font-size: clamp(3.25rem, 8vw, 7.25rem);
-	letter-spacing: -0.043em;
+	letter-spacing: -0.038em;
 	font-weight: 630;
 	line-height: 0.95;
 }
@@ -228,7 +229,7 @@ footer {
 }
 .hero p:not(.eyebrow) {
 	max-width: 41ch;
-	color: #c8d9da;
+	color: #e0c5bd;
 }
 .actions {
 	justify-content: flex-start;
@@ -249,14 +250,25 @@ footer {
 	inset: 0;
 	z-index: -1;
 	background:
-		linear-gradient(90deg, #07171deb, #08171ec2 35%, #08171e15 80%),
-		url("/brand/useparlo-river.webp") center / cover no-repeat;
+		linear-gradient(90deg, #100806fa, #1e0c0adc 35%, #240c0815 80%),
+		url("/brand/primar-ember.webp") center / cover no-repeat;
 }
 .hero .button span {
 	margin-left: 9px;
 }
 .hero .hero-secondary {
-	background: #13272bdc;
+	background: #341510ed;
+}
+.hero .hero-guide {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--accent-light);
+	font-size: 0.9rem;
+	text-decoration: none;
+}
+.hero .hero-guide:hover {
+	text-decoration: underline;
 }
 .how-it-works {
 	margin-top: clamp(36px, 6vw, 65px);
@@ -271,13 +283,18 @@ footer {
 }
 .feature-card ol {
 	display: grid;
-	gap: 8px;
+	gap: 0;
 	margin: 14px 0;
-	padding-inline-start: 1.2rem;
+	padding-inline-start: 1.45rem;
 	color: var(--muted);
 }
+.feature-card li {
+	padding: 9px 0 9px 4px;
+	border-bottom: 1px solid var(--line);
+}
 .feature-card li::marker {
-	color: var(--accent);
+	color: var(--accent-light);
+	font-family: var(--mono);
 }
 .home-details {
 	display: grid;
@@ -290,7 +307,7 @@ footer {
 	padding: clamp(21px, 4vw, 35px);
 	border: 1px solid var(--line);
 	border-radius: 20px;
-	background: linear-gradient(145deg, #173138, var(--panel) 64%);
+	background: linear-gradient(145deg, #3a130c, var(--panel) 64%);
 }
 .home-details p {
 	margin-top: 11px;
@@ -365,13 +382,13 @@ footer {
 .vault-workspace .vault-locked {
 	min-height: 280px;
 	background:
-		radial-gradient(ellipse at top, #1c3c40, transparent 75%), var(--panel);
+		radial-gradient(ellipse at top, #631a07, transparent 75%), var(--panel);
 }
 .vault-tools {
 	justify-content: flex-end;
 }
 .balance-panel {
-	background: linear-gradient(145deg, #183b3c, var(--panel) 75%);
+	background: linear-gradient(145deg, #3a130c, var(--panel) 75%);
 }
 .grid {
 	display: grid;
@@ -420,7 +437,7 @@ button,
 	width: fit-content;
 	min-height: 44px;
 	padding: 9px 17px;
-	border: 1px solid #38535a;
+	border: 1px solid #744131;
 	border-radius: 12px;
 	background: var(--raised);
 	color: var(--text);
@@ -444,7 +461,7 @@ button:disabled {
 .primary {
 	border-color: var(--accent);
 	background: var(--accent);
-	color: #112822;
+	color: #100806;
 }
 .wallet-inner button {
 	min-height: 36px;
@@ -468,7 +485,7 @@ select {
 	padding: 8px 12px;
 	border: 1px solid var(--line);
 	border-radius: 10px;
-	background: #0d1c22;
+	background: #190c09;
 	color: var(--text);
 	font: inherit;
 }
@@ -528,9 +545,9 @@ details summary {
 }
 .inline-note {
 	padding: 11px 14px;
-	border: 1px solid #3d5960;
+	border: 1px solid #744131;
 	border-radius: 10px;
-	background: #162e36;
+	background: #341510;
 }
 .form-width {
 	width: 100%;
@@ -568,7 +585,7 @@ code,
 	color: var(--accent-light);
 	font-size: 0.85rem;
 	padding: 3px 9px;
-	background: #203c43;
+	background: #421b12;
 	border-radius: 6px;
 }
 code {
@@ -605,7 +622,7 @@ code {
 			transform 0.25s var(--ease);
 	}
 	.listing-card:hover {
-		border-color: #709991;
+		border-color: #ca6d55;
 		transform: translateY(-3px);
 	}
 }
@@ -693,8 +710,8 @@ code {
 	}
 	.hero-art {
 		background:
-			linear-gradient(180deg, #07171df0, #07171dc4 39%, #07171d20 94%),
-			url("/brand/useparlo-river.webp") 65% center / cover no-repeat;
+			linear-gradient(180deg, #100806fa, #1e0c0ae8 39%, #240c0820 94%),
+			url("/brand/primar-ember.webp") 65% center / cover no-repeat;
 	}
 	.home-details,
 	.home-guide,
